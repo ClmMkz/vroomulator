@@ -1253,6 +1253,7 @@ class SourceGPS {
     this.vitesse = v;
     this.derniere = { t:t, latitude:pos.coords.latitude, longitude:pos.coords.longitude };
     this.ok = true;
+    this.tRecu = performance.now();
   }
 
   distance(a, b){
@@ -1422,11 +1423,14 @@ function boucle(maintenant){
 
   /* ── 1. vitesse ── */
   if(etat.mode === 'gps'){
-    vitesseCible = gps.ok ? gps.vitesse : 0;
+    if(gps.ok){
+      const age = Math.min((maintenant - gps.tRecu)/1000 + 0.45, 1.6);
+      vitesseCible = Math.max(0, gps.vitesse + gps.accel * 3.6 * age);
+    } else vitesseCible = 0;
     etat.charge = gps.ok
-      ? clamp(0.12 + gps.accel*0.40 + vitesseCible/(VOITURE.vitMax*3.2), 0, 1)
+      ? clamp(0.10 + gps.accel*0.55 + vitesseCible/(VOITURE.vitMax*3.2), 0, 1)
       : lerp(etat.charge, 0.10, 0.04);
-    etat.vitesse = lerp(etat.vitesse, vitesseCible, 0.16);
+    etat.vitesse += (vitesseCible - etat.vitesse) * (1 - Math.exp(-dt/0.12));
   }
   else if(etat.mode === 'pedale'){
     etat.vitesse = rouler(etat.vitesse, etat.pedale, 0, dt);
@@ -1452,18 +1456,19 @@ function boucle(maintenant){
   if(passage !== 0){
     $('#rapport').classList.add('change');
     setTimeout(() => $('#rapport').classList.remove('change'), 170);
-    if(passage === 1 && etat.enMarche && etat.charge > 0.45){
-      etat.pops += audio.petarade(0.5);
+    if(passage === 1 && etat.enMarche){
+      audio.pop(0.9);
+      if(etat.charge > 0.35) etat.pops += audio.petarade(0.7);
     }
   }
 
   /* coupure d'allumage pendant le passage : c'est ce silence qui fait le « clac » */
   const depuis = maintenant - boite.tPassage;
-  const gate = (depuis >= 0 && depuis < 130) ? 0.10 : 1;
+  const gate = (depuis >= 0 && depuis < 170) ? 0.0 : (depuis < 320 ? 1.25 : 1);
 
   /* ── 3. régime, avec l'inertie d'un vrai vilebrequin ── */
   const rpmCible = boite.regime(etat.vitesse, boite.gear, p);
-  const tau = depuis < 260 ? 0.09 : (rpmCible > etat.rpm ? 0.20 : 0.34);
+  const tau = depuis < 200 ? 0.045 : (rpmCible > etat.rpm ? 0.11 : 0.22);
   etat.rpm += (rpmCible - etat.rpm) * (1 - Math.exp(-dt/tau));
   /* tremblement de ralenti */
   const rpmAffiche = etat.rpm + (etat.rpm < p.ralenti*1.25
