@@ -1309,6 +1309,7 @@ const VOITURE = {
   regen:3000,        // N de frein moteur en levant le pied
   frein:11000,       // N sur le frein a pied
   vitMax:201,        // km/h, bridage constructeur
+  vitBoite:150,      // km/h ou le dernier rapport touche la zone rouge : boite courte, regime haut
   zeroCent:5.9       // s, reference constructeur
 };
 
@@ -1339,7 +1340,7 @@ class Transmission {
 
   facteur(p){
     const dernier = Math.min(p.boites, RAPPORTS.length) - 1;
-    return (p.rougeA - p.ralenti) / (VOITURE.vitMax * RAPPORTS[dernier]);
+    return (p.rougeA - p.ralenti) / (VOITURE.vitBoite * RAPPORTS[dernier]);
   }
 
   regime(vitesse, gear, p){
@@ -1356,8 +1357,8 @@ class Transmission {
     const c = clamp(charge, 0, 1);
     const plage = p.rougeA - p.ralenti;
     const rpm = this.regime(vitesse, this.gear, p);
-    const monte = p.ralenti + plage * (0.46 + 0.48*c);
-    const descend = p.ralenti + plage * (0.14 + 0.36*c);
+    const monte = p.ralenti + plage * (0.66 + 0.30*c);
+    const descend = p.ralenti + plage * (0.34 + 0.24*c);
 
     if(rpm > monte && this.gear < dernier){
       this.gear++;
