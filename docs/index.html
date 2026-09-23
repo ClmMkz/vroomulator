@@ -1079,7 +1079,38 @@ class MoteurAudio {
     this.gaz.connect(this.grave);
     this.grave.connect(this.gainMoteur);
     this.gainMoteur.connect(this.compresseur);
-    this.compresseur.connect(this.master);
+    /* ── Mise en forme pour des haut-parleurs de voiture ──
+       Le signal sortait trop bas (il fallait 80 % de volume). On le
+       remonte franchement, puis un limiteur empêche toute saturation.
+       Égaliseur : un grave rond, un creux dans le médium boueux, de la
+       présence pour que l'échappement « claque » dans l'habitacle. */
+    const grave = c.createBiquadFilter();
+    grave.type = 'lowshelf'; grave.frequency.value = 110; grave.gain.value = 5;
+    const boue = c.createBiquadFilter();
+    boue.type = 'peaking'; boue.frequency.value = 380; boue.Q.value = 1.2; boue.gain.value = -3;
+    const presence = c.createBiquadFilter();
+    presence.type = 'peaking'; presence.frequency.value = 2600; presence.Q.value = 0.9; presence.gain.value = 3.5;
+    const air = c.createBiquadFilter();
+    air.type = 'lowpass'; air.frequency.value = 11000; air.Q.value = 0.5;
+    this.gainSortie = c.createGain();
+    this.gainSortie.gain.value = 2.8;
+    const limiteur = c.createDynamicsCompressor();
+    limiteur.threshold.value = -2; limiteur.knee.value = 0; limiteur.ratio.value = 20;
+    limiteur.attack.value = 0.002; limiteur.release.value = 0.12;
+
+    /* Toutes les enceintes : une copie décalée de 9 ms à droite élargit
+       l'image sans créer d'écho perceptible. */
+    const separe = c.createChannelSplitter(2);
+    const fusion = c.createChannelMerger(2);
+    const retard = c.createDelay(0.05); retard.delayTime.value = 0.009;
+
+    this.compresseur.connect(grave);
+    grave.connect(boue); boue.connect(presence); presence.connect(air);
+    air.connect(this.gainSortie); this.gainSortie.connect(limiteur);
+    limiteur.connect(separe);
+    separe.connect(fusion, 0, 0);
+    separe.connect(retard, 1); retard.connect(fusion, 0, 1);
+    fusion.connect(this.master);
     this.master.connect(c.destination);
 
     this.bruitBuf = this.faireBruit(2);
@@ -1335,7 +1366,7 @@ function rouler(vKmh, gaz, frein, dt){
 const RAPPORTS = [3.55, 2.16, 1.54, 1.16, 0.92, 0.77, 0.65];
 
 class Transmission {
-  constructor(){ this.gear = 0; this.verrou = 0; this.tPassage = -9999; }
+  constructor(){ this.gear = 0; this.verrou = 0; this.tPassage = -9999; this.tRupteur = 0; }
   reset(){ this.gear = 0; this.verrou = 0; this.tPassage = -9999; }
 
   facteur(p){
@@ -1344,7 +1375,7 @@ class Transmission {
   }
 
   regime(vitesse, gear, p){
-    return clamp(p.ralenti + vitesse * this.facteur(p) * RAPPORTS[gear], p.ralenti, p.max);
+    return clamp(p.ralenti + vitesse * this.facteur(p) * RAPPORTS[gear], p.ralenti, p.rougeA * 1.02);
   }
 
   /* Renvoie 1 si on vient de monter un rapport, -1 si on a rétrogradé, 0 sinon.
@@ -1357,10 +1388,24 @@ class Transmission {
     const c = clamp(charge, 0, 1);
     const plage = p.rougeA - p.ralenti;
     const rpm = this.regime(vitesse, this.gear, p);
-    const monte = p.ralenti + plage * (0.66 + 0.30*c);
-    const descend = p.ralenti + plage * (0.34 + 0.24*c);
+    /* C'est la pédale qui décide, pas la vitesse :
+       - pied levé  → on passe le rapport tout de suite ;
+       - pied tenu  → on laisse monter, d'autant plus haut qu'on appuie ;
+       - pied à fond → on tape le rupteur avant de passer. */
+    let monte;
+    if(c < 0.22) monte = p.ralenti + plage * 0.40;
+    else if(c < 0.85) monte = p.ralenti + plage * (0.50 + 0.52 * (c - 0.22) / 0.63);
+    else monte = Infinity;
+    const descend = p.ralenti + plage * (c < 0.22 ? 0.16 : 0.22 + 0.40 * c);
+
+    /* au rupteur, pied à fond : on rebondit un instant puis on passe */
+    if(c >= 0.85 && rpm >= p.rougeA * 0.995){
+      if(!this.tRupteur) this.tRupteur = maintenant;
+      if(maintenant - this.tRupteur > 420 && this.gear < dernier) monte = 0;
+    } else this.tRupteur = 0;
 
     if(rpm > monte && this.gear < dernier){
+      this.tRupteur = 0;
       this.gear++;
       this.verrou = maintenant + 700;
       this.tPassage = maintenant;
@@ -1597,7 +1642,7 @@ function boucle(maintenant){
       vitesseCible = Math.max(0, gps.vitesse + gps.accel * 3.6 * age);
     } else vitesseCible = 0;
     etat.charge = gps.ok
-      ? clamp(0.10 + gps.accel*0.55 + vitesseCible/(VOITURE.vitMax*3.2), 0, 1)
+      ? clamp(0.08 + gps.accel*0.25 + vitesseCible/(VOITURE.vitMax*3.2), 0, 1)
       : lerp(etat.charge, 0.10, 0.04);
     etat.vitesse += (vitesseCible - etat.vitesse) * (1 - Math.exp(-dt/0.12));
   }
@@ -1633,7 +1678,10 @@ function boucle(maintenant){
 
   /* coupure d'allumage pendant le passage : c'est ce silence qui fait le « clac » */
   const depuis = maintenant - boite.tPassage;
-  const gate = (depuis >= 0 && depuis < 170) ? 0.0 : (depuis < 320 ? 1.25 : 1);
+  let gate = (depuis >= 0 && depuis < 170) ? 0.0 : (depuis < 320 ? 1.25 : 1);
+  /* rupteur : l'allumage est coupé par à-coups, ~11 fois par seconde */
+  const auRupteur = etat.charge >= 0.85 && etat.rpm >= p.rougeA * 0.99;
+  if(auRupteur && gate === 1) gate = (Math.floor(maintenant / 45) % 2) ? 0.05 : 1;
 
   /* ── 3. régime, avec l'inertie d'un vrai vilebrequin ── */
   const rpmCible = boite.regime(etat.vitesse, boite.gear, p);
@@ -1641,7 +1689,8 @@ function boucle(maintenant){
   etat.rpm += (rpmCible - etat.rpm) * (1 - Math.exp(-dt/tau));
   /* tremblement de ralenti */
   const rpmAffiche = etat.rpm + (etat.rpm < p.ralenti*1.25
-    ? Math.sin(maintenant*0.011) * p.ralenti*0.022 : 0);
+    ? Math.sin(maintenant*0.011) * p.ralenti*0.022 : 0)
+    - (auRupteur && gate < 0.5 ? p.rougeA * 0.035 : 0);
 
   /* ── 4. turbo ── */
   const cibleBoost = p.turbo
