@@ -1,5 +1,5 @@
 /* Cache hors ligne : la page marche meme sans reseau une fois visitee. */
-const VERSION = 'vroom-1';
+const VERSION = 'vroom-2';
 const FICHIERS = ['./', './index.html', './manifest.webmanifest', './icone.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FICHIERS)));
