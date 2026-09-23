@@ -1,0 +1,1800 @@
+<title>Vroomulator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#100E0C">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@400;500;600;700&family=Oxanium:wght@400;600;800&display=swap">
+
+<style>
+/* ══════════════════════════════════════════════
+   TOKENS — livrée de course, cockpit de nuit
+   Mono-thème assumé : un tableau de bord ne passe
+   pas en blanc quand on roule la nuit.
+   ══════════════════════════════════════════════ */
+:root{
+  --asphalte:#100E0C;
+  --capot:#1A1715;
+  --capot-2:#221E1B;
+  --acier:#332C27;
+  --gulf:#46C2DE;
+  --gulf-sombre:#1C6E82;
+  --flamme:#FF5A1F;
+  --flamme-sombre:#8C2E0C;
+  --creme:#EFE7D8;
+  --craie:#8C8375;
+
+  --ui:'Barlow Condensed','Roboto Condensed','Arial Narrow',system-ui,sans-serif;
+  --display:'Anton','Barlow Condensed','Arial Narrow',sans-serif;
+  --data:'Oxanium','Chakra Petch',ui-monospace,'Consolas',monospace;
+
+  --r:4px;
+  --gap:clamp(8px,1.2vw,16px);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--asphalte);
+  color:var(--creme);
+  font-family:var(--ui);
+  min-height:100vh;
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;user-select:none;
+  touch-action:manipulation;
+}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--gulf);outline-offset:2px}
+
+.grain{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 90% 60% at 30% 0%, rgba(70,194,222,.07), transparent 70%),
+    radial-gradient(ellipse 70% 50% at 85% 100%, rgba(255,90,31,.06), transparent 70%);
+}
+
+.coque{
+  position:relative;z-index:1;
+  height:100vh;height:100dvh;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  gap:var(--gap);
+  padding:var(--gap);
+}
+
+/* ── Bandeau ─────────────────────────────────── */
+.bandeau{
+  display:flex;align-items:center;gap:14px;
+  border-bottom:1px solid var(--acier);
+  padding-bottom:8px;
+}
+.livree{display:flex;height:22px;width:52px;flex:none;transform:skewX(-14deg);overflow:hidden;border-radius:1px}
+.livree i{flex:1}
+.livree i:nth-child(1){background:var(--gulf)}
+.livree i:nth-child(2){background:var(--flamme)}
+.livree i:nth-child(3){background:var(--creme)}
+.marque{font-family:var(--display);font-size:clamp(19px,2.3vw,30px);letter-spacing:.02em;line-height:1;text-transform:uppercase}
+.marque em{font-style:normal;color:var(--flamme)}
+.sous-marque{
+  font-size:clamp(9px,.85vw,11px);letter-spacing:.22em;text-transform:uppercase;
+  color:var(--craie);margin-top:2px;
+}
+.bandeau-fin{margin-left:auto;display:flex;align-items:center;gap:6px}
+
+.picto{
+  width:38px;height:34px;border:1px solid var(--acier);border-radius:var(--r);
+  background:var(--capot);display:grid;place-items:center;font-size:15px;
+  transition:border-color .15s,background .15s;
+}
+.picto:hover{border-color:var(--gulf-sombre)}
+.picto[aria-pressed="true"]{border-color:var(--gulf);background:#13282E;color:var(--gulf)}
+
+.plateau{
+  display:grid;
+  grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);
+  gap:var(--gap);
+  min-height:0;
+}
+
+/* ── Compteur ────────────────────────────────── */
+.bloc-compteur{position:relative;display:grid;place-items:center;min-height:0}
+#cadran{width:100%;height:100%;max-height:100%;display:block}
+.tr-min{font-family:var(--ui);font-size:11px;letter-spacing:.2em;fill:var(--craie);text-transform:uppercase}
+
+/* ── Télémétrie ──────────────────────────────── */
+.telemetrie{display:grid;grid-template-rows:auto auto 1fr;gap:var(--gap);min-height:0}
+.rangee-chiffres{display:grid;grid-template-columns:1.6fr .8fr;gap:var(--gap)}
+.tuile{
+  background:var(--capot);border:1px solid var(--acier);border-radius:var(--r);
+  padding:clamp(8px,1.1vw,16px) clamp(10px,1.3vw,20px);position:relative;overflow:hidden;
+}
+.tuile::after{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--gulf-sombre)}
+.tuile.rapport::after{background:var(--flamme-sombre)}
+.etiquette{
+  font-size:clamp(9px,.8vw,11px);letter-spacing:.2em;text-transform:uppercase;
+  color:var(--craie);display:flex;justify-content:space-between;align-items:baseline;
+}
+.valeur{
+  font-family:var(--data);font-weight:800;font-variant-numeric:tabular-nums;
+  line-height:.92;letter-spacing:-.02em;display:flex;align-items:baseline;gap:6px;margin-top:4px;
+}
+.valeur .u{font-size:.3em;font-weight:600;letter-spacing:.12em;color:var(--craie);font-family:var(--ui)}
+#vitesse{font-size:clamp(46px,7.4vw,104px)}
+#rapport{font-size:clamp(40px,6.2vw,88px);color:var(--flamme);transition:opacity .12s}
+#rapport.change{opacity:.28}
+
+.jauges{display:grid;gap:9px}
+.jauge{display:grid;grid-template-columns:88px 1fr auto;align-items:center;gap:10px}
+.jauge-nom{font-size:clamp(9px,.8vw,11px);letter-spacing:.16em;text-transform:uppercase;color:var(--craie)}
+.piste{height:9px;background:var(--capot);border:1px solid var(--acier);border-radius:1px;overflow:hidden}
+.remplissage{height:100%;width:0%;transition:width .07s linear;background:var(--gulf)}
+.remplissage.chaud{background:linear-gradient(90deg,var(--flamme-sombre),var(--flamme))}
+.jauge-val{font-family:var(--data);font-size:12px;font-variant-numeric:tabular-nums;color:var(--craie);min-width:44px;text-align:right}
+
+.copilote{
+  background:var(--capot-2);border:1px solid var(--acier);border-left:3px solid var(--flamme);
+  border-radius:var(--r);padding:10px 14px;display:grid;align-content:center;gap:3px;min-height:0;
+}
+.copilote-titre{font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--flamme)}
+#copilote-texte{font-size:clamp(13px,1.35vw,19px);font-weight:500;line-height:1.25;text-wrap:balance}
+
+.records{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--acier);border:1px solid var(--acier);border-radius:var(--r);overflow:hidden}
+.record{background:var(--capot);padding:7px 9px;min-width:0}
+.record dt{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--craie);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.record dd{margin:2px 0 0;font-family:var(--data);font-weight:600;font-size:clamp(13px,1.5vw,19px);font-variant-numeric:tabular-nums}
+
+/* ── Pied ────────────────────────────────────── */
+.pied{display:grid;grid-template-columns:1fr auto;gap:var(--gap);align-items:end}
+.rail{overflow-x:auto;overflow-y:hidden;padding-bottom:4px;scrollbar-width:thin;scrollbar-color:var(--acier) transparent}
+.rail::-webkit-scrollbar{height:5px}
+.rail::-webkit-scrollbar-thumb{background:var(--acier);border-radius:3px}
+.rail-pistes{display:flex;gap:8px;width:max-content}
+
+.sticker{
+  width:clamp(112px,11.5vw,158px);
+  background:var(--capot);border:1px solid var(--acier);border-radius:var(--r);
+  padding:8px 10px 9px;text-align:left;transform:skewX(-4deg);
+  transition:border-color .15s,background .15s;display:grid;gap:2px;
+}
+.sticker>*{transform:skewX(4deg)}
+.sticker:hover{border-color:var(--gulf-sombre);background:var(--capot-2)}
+.sticker[aria-pressed="true"]{border-color:var(--flamme);background:#241610}
+.sticker-haut{display:flex;align-items:center;gap:6px}
+.sticker-emoji{font-size:15px;line-height:1}
+.sticker-nom{
+  font-family:var(--display);font-size:clamp(12px,1.15vw,15px);text-transform:uppercase;
+  letter-spacing:.01em;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.sticker[aria-pressed="true"] .sticker-nom{color:var(--flamme)}
+.sticker-blague{font-size:10.5px;line-height:1.15;color:var(--craie);height:2.3em;overflow:hidden}
+.sticker-specs{font-family:var(--data);font-size:9px;letter-spacing:.06em;color:var(--gulf-sombre);font-variant-numeric:tabular-nums}
+.sticker[aria-pressed="true"] .sticker-specs{color:var(--gulf)}
+
+.commandes{display:flex;align-items:end;gap:8px}
+.coup{
+  width:clamp(66px,6.4vw,86px);height:clamp(56px,5.6vw,74px);
+  border:1px solid var(--acier);border-radius:var(--r);background:var(--capot);
+  display:grid;place-content:center;justify-items:center;gap:3px;
+  transition:transform .08s,border-color .15s,background .15s;
+}
+.coup span{font-size:17px;line-height:1}
+.coup b{font-family:var(--display);font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:400}
+.coup:active{transform:scale(.94)}
+.coup.feu{border-color:var(--flamme-sombre);color:var(--flamme)}
+.coup.feu:hover{background:#241610}
+.coup.frais{border-color:var(--gulf-sombre);color:var(--gulf)}
+.coup.frais:hover{background:#13282E}
+
+.pedale{
+  width:clamp(96px,9vw,124px);height:clamp(56px,5.6vw,74px);
+  border:1px solid var(--flamme-sombre);border-radius:var(--r);
+  background:linear-gradient(180deg,var(--capot-2),var(--capot));
+  position:relative;overflow:hidden;
+  display:grid;place-content:center;justify-items:center;gap:3px;transition:transform .08s;
+}
+.pedale:active{transform:scale(.97)}
+.pedale-jus{position:absolute;left:0;bottom:0;width:100%;height:0%;background:linear-gradient(180deg,var(--flamme),var(--flamme-sombre));opacity:.28;transition:height .08s linear}
+.pedale>*{position:relative}
+.pedale span{font-size:17px;line-height:1}
+.pedale b{font-family:var(--display);font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:400;color:var(--flamme)}
+.pedale[disabled]{opacity:.3;border-color:var(--acier)}
+.pedale[disabled] b{color:var(--craie)}
+
+/* ── Écran de démarrage ──────────────────────── */
+.demarrage{position:fixed;inset:0;z-index:20;background:rgba(16,14,12,.9);display:grid;place-items:center;padding:20px}
+.demarrage[hidden]{display:none}
+.carte-demarrage{
+  width:min(560px,100%);max-height:100%;overflow-y:auto;
+  background:var(--capot);border:1px solid var(--acier);border-top:3px solid var(--flamme);
+  border-radius:var(--r);padding:clamp(20px,3vw,32px);text-align:center;
+}
+.carte-demarrage h1{
+  font-family:var(--display);text-transform:uppercase;
+  font-size:clamp(30px,5vw,52px);line-height:.95;margin:0 0 6px;letter-spacing:.01em;
+}
+.carte-demarrage h1 em{font-style:normal;color:var(--flamme)}
+.accroche{font-size:clamp(14px,1.7vw,18px);color:var(--craie);margin:0 0 22px;line-height:1.35;text-wrap:balance}
+.accroche b{color:var(--gulf);font-weight:600}
+.modes{display:grid;gap:8px;margin-bottom:18px;text-align:left}
+.mode{
+  display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;
+  border:1px solid var(--acier);border-radius:var(--r);background:var(--capot-2);
+  padding:12px 14px;transition:border-color .15s;
+}
+.mode:hover{border-color:var(--gulf-sombre)}
+.mode[aria-pressed="true"]{border-color:var(--gulf);background:#13282E}
+.mode-emoji{font-size:22px}
+.mode-nom{font-family:var(--display);font-size:15px;text-transform:uppercase;letter-spacing:.02em}
+.mode[aria-pressed="true"] .mode-nom{color:var(--gulf)}
+.mode-desc{font-size:12.5px;color:var(--craie);line-height:1.3;margin-top:1px}
+.bouton-contact{
+  width:100%;font-family:var(--display);text-transform:uppercase;
+  font-size:clamp(20px,3vw,28px);letter-spacing:.06em;padding:16px;
+  background:var(--flamme);color:#160D06;border-radius:var(--r);
+  transition:transform .08s,background .15s;
+}
+.bouton-contact:hover{background:#FF6E3A}
+.bouton-contact:active{transform:scale(.985)}
+.avertissement{margin:14px 0 0;font-size:11.5px;line-height:1.4;color:var(--craie);display:flex;gap:8px;align-items:flex-start;text-align:left}
+.avertissement b{color:var(--creme);font-weight:600}
+
+.avis{
+  position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:30;max-width:min(560px,92vw);
+  background:var(--capot-2);border:1px solid var(--flamme-sombre);border-left:3px solid var(--flamme);
+  border-radius:var(--r);padding:10px 16px;font-size:13px;line-height:1.35;
+  box-shadow:0 8px 28px rgba(0,0,0,.6);
+}
+.avis[hidden]{display:none}
+
+.mixage{
+  position:fixed;top:64px;right:var(--gap);z-index:25;width:min(320px,calc(100vw - 32px));
+  background:var(--capot);border:1px solid var(--acier);border-top:3px solid var(--gulf);
+  border-radius:var(--r);padding:14px 16px;display:grid;gap:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.6);
+}
+.mixage[hidden]{display:none}
+.mixage h2{margin:0;font-family:var(--display);font-size:15px;text-transform:uppercase;letter-spacing:.04em;color:var(--gulf)}
+.curseur{display:grid;grid-template-columns:80px 1fr 40px;align-items:center;gap:10px}
+.curseur span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--craie)}
+.curseur output{font-family:var(--data);font-size:12px;text-align:right;color:var(--creme)}
+.curseur input{width:100%;accent-color:var(--flamme)}
+.mixage-pied{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--craie)}
+.mixage-pied button{border:1px solid var(--acier);border-radius:var(--r);padding:5px 10px;font-size:12px}
+.mixage-pied button:hover{border-color:var(--gulf-sombre)}
+
+@media (max-aspect-ratio:1/1),(max-width:720px){
+  body{overflow-y:auto}
+  .coque{height:auto;min-height:100vh;min-height:100dvh}
+  .plateau{grid-template-columns:1fr}
+  .bloc-compteur{max-height:46vh}
+  .pied{grid-template-columns:1fr;gap:10px}
+  .commandes{justify-content:space-between}
+  .coup,.pedale{flex:1}
+  .records{grid-template-columns:repeat(2,1fr)}
+  .sous-marque{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important}}
+</style>
+
+<div class="grain"></div>
+
+<div class="coque">
+
+  <header class="bandeau">
+    <div class="livree" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div>
+      <div class="marque">Vroom<em>ulator</em></div>
+      <div class="sous-marque">Écurie du silence · Model Y Propulsion</div>
+    </div>
+    <div class="bandeau-fin">
+      <button class="picto" id="btn-mixage" aria-pressed="false" title="Mixage" aria-label="Ouvrir le mixage">🎚️</button>
+      <button class="picto" id="btn-volume" title="Volume" aria-label="Régler le volume">🔊</button>
+      <button class="picto" id="btn-plein" title="Plein écran" aria-label="Plein écran">⛶</button>
+      <button class="picto" id="btn-coupe" aria-pressed="true" title="Couper le moteur" aria-label="Couper le moteur">⏻</button>
+    </div>
+  </header>
+
+  <div class="plateau">
+
+    <section class="bloc-compteur" aria-label="Compte-tours">
+      <svg id="cadran" viewBox="0 0 420 360" role="img" aria-labelledby="titre-cadran">
+        <title id="titre-cadran">Compte-tours du moteur simulé</title>
+        <g id="graduations"></g>
+        <path id="arc-zone-rouge" fill="none" stroke="var(--flamme)" stroke-width="9" opacity=".85"></path>
+        <path id="arc-regime" fill="none" stroke="var(--gulf)" stroke-width="9" stroke-linecap="butt"></path>
+        <g id="aiguille">
+          <line x1="210" y1="210" x2="210" y2="72" stroke="var(--flamme)" stroke-width="4" stroke-linecap="round"></line>
+          <circle cx="210" cy="210" r="13" fill="var(--capot-2)" stroke="var(--acier)" stroke-width="1.5"></circle>
+          <circle cx="210" cy="210" r="4" fill="var(--flamme)"></circle>
+        </g>
+        <text x="210" y="268" text-anchor="middle" id="regime-txt"
+              style="font-family:var(--data);font-weight:800;font-size:46px;fill:var(--creme)">800</text>
+        <text x="210" y="288" text-anchor="middle" class="tr-min">tours / minute</text>
+        <text x="210" y="322" text-anchor="middle" id="nom-moteur"
+              style="font-family:var(--display);font-size:19px;fill:var(--flamme);text-transform:uppercase">Big Block 66</text>
+      </svg>
+    </section>
+
+    <section class="telemetrie" aria-label="Télémétrie">
+
+      <div class="rangee-chiffres">
+        <div class="tuile">
+          <div class="etiquette"><span>Vitesse</span><span id="source-vitesse">démo</span></div>
+          <div class="valeur"><span id="vitesse">0</span><span class="u">km/h</span></div>
+        </div>
+        <div class="tuile rapport">
+          <div class="etiquette"><span>Rapport</span></div>
+          <div class="valeur"><span id="rapport">1</span></div>
+        </div>
+      </div>
+
+      <div class="jauges">
+        <div class="jauge">
+          <span class="jauge-nom">Charge</span>
+          <div class="piste"><div class="remplissage chaud" id="jauge-charge"></div></div>
+          <span class="jauge-val" id="val-charge">0 %</span>
+        </div>
+        <div class="jauge">
+          <span class="jauge-nom">Turbo</span>
+          <div class="piste"><div class="remplissage" id="jauge-turbo"></div></div>
+          <span class="jauge-val" id="val-turbo">0,0 bar</span>
+        </div>
+        <div class="jauge">
+          <span class="jauge-nom">Crédibilité</span>
+          <div class="piste"><div class="remplissage" id="jauge-cred"></div></div>
+          <span class="jauge-val" id="val-cred">100 %</span>
+        </div>
+      </div>
+
+      <div class="copilote">
+        <div class="copilote-titre">Copilote</div>
+        <p id="copilote-texte">Moteur coupé. La voiture ne fait aucun bruit, comme prévu par le constructeur.</p>
+      </div>
+
+      <dl class="records">
+        <div class="record"><dt>V. max</dt><dd id="rec-vitesse">0</dd></div>
+        <div class="record"><dt>0 à 100</dt><dd id="rec-0100">—</dd></div>
+        <div class="record"><dt>Régime max</dt><dd id="rec-regime">0</dd></div>
+        <div class="record"><dt>Pétarades</dt><dd id="rec-pops">0</dd></div>
+        <div class="record"><dt>Zone rouge</dt><dd id="rec-rouge">0 s</dd></div>
+      </dl>
+
+    </section>
+  </div>
+
+  <div class="pied">
+    <nav class="rail" aria-label="Choix du moteur">
+      <div class="rail-pistes" id="rail-moteurs"></div>
+    </nav>
+    <div class="commandes">
+      <button class="coup feu" id="btn-petarade"><span>💥</span><b>Pétarade</b></button>
+      <button class="coup frais" id="btn-turbo"><span>🌀</span><b>Turbo</b></button>
+      <button class="pedale" id="pedale" disabled>
+        <div class="pedale-jus" id="pedale-jus"></div>
+        <span>🦶</span><b>Accélérer</b>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<div class="demarrage" id="demarrage">
+  <div class="carte-demarrage">
+    <h1>Rendez le bruit à votre <em>Model Y</em></h1>
+    <p class="accroche">
+      Treize moteurs modélisés en direct, et une boîte de vitesses inventée pour une
+      voiture qui n'en a pas. <b>Masse, puissance et bridage sont ceux de votre Model Y
+      Propulsion : le chrono 0 à 100 affiche donc le vrai.</b>
+    </p>
+
+    <div class="modes" id="modes"></div>
+
+    <button class="bouton-contact" id="btn-contact">Mettre le contact</button>
+
+    <p class="avertissement">
+      <span aria-hidden="true">⚠️</span>
+      <span><b>En roulant, restez en mode GPS</b> et ne touchez plus l'écran : tout se règle avant de démarrer.
+      Le son sort par les haut-parleurs si la source audio de la voiture est réglée sur « Navigateur ».</span>
+    </p>
+  </div>
+</div>
+
+<section class="mixage" id="mixage" hidden aria-label="Mixage">
+  <h2>Mixage</h2>
+  <label class="curseur"><span>Volume</span><input type="range" min="0" max="100" data-mix="volume"><output></output></label>
+  <label class="curseur"><span>Grave</span><input type="range" min="0" max="200" data-mix="grave"><output></output></label>
+  <label class="curseur"><span>Turbo</span><input type="range" min="0" max="200" data-mix="turbo"><output></output></label>
+  <label class="curseur"><span>Pétarades</span><input type="range" min="0" max="200" data-mix="pops"><output></output></label>
+  <div class="mixage-pied"><span>Réglages mémorisés sur cet appareil</span><button type="button" id="btn-mix-defaut">Par défaut</button></div>
+</section>
+
+<div class="avis" id="avis" hidden></div>
+
+<script>
+document.documentElement.lang = 'fr';
+(function(){
+'use strict';
+
+/* ══════════════════════════════════════════════
+   SECTION : OUTILS
+   ══════════════════════════════════════════════ */
+const $ = (s) => document.querySelector(s);
+const clamp = (v,a,b) => v < a ? a : (v > b ? b : v);
+const lerp = (a,b,t) => a + (b-a)*t;
+const fr = (n,d) => n.toLocaleString('fr-FR',{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
+
+function avis(msg, duree){
+  const el = $('#avis');
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(avis._t);
+  avis._t = setTimeout(() => { el.hidden = true; }, duree || 6000);
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : NOYAU DSP
+
+   Modèle excitation / résonateur.
+
+   Un vrai moteur, c'est une suite d'explosions qui
+   excitent des cavités de dimensions FIXES (collecteur,
+   ligne, silencieux). Quand le régime monte, seule la
+   fréquence des explosions change : les résonances,
+   elles, ne bougent pas. C'est précisément ce qui
+   distingue un moteur d'une bande accélérée.
+
+   La fonction ci-dessous est volontairement autonome
+   (aucune capture externe) : son source est sérialisé
+   tel quel dans l'AudioWorklet.
+   ══════════════════════════════════════════════ */
+function fabriqueDSP(){
+
+  function DSP(sr){
+    this.sr = sr;
+    this.rpm = 800; this.rpmCible = 800;
+    this.charge = 0.15; this.chargeCible = 0.15;
+    this.gate = 1; this.gateCible = 1;
+    this.graine = 22222;
+
+    /* deux lignes d'échappement (longueurs fixes) */
+    this.d1 = new Float32Array(8192); this.i1 = 0; this.n1 = 600; this.lp1 = 0;
+    this.d2 = new Float32Array(8192); this.i2 = 0; this.n2 = 470; this.lp2 = 0;
+    this.fb1 = 0.70; this.fb2 = 0.62; this.amortLigne = 0.42; this.mixLigne = 1;
+
+    /* trois résonateurs à fréquences fixes */
+    this.co = new Float32Array(15);   /* 3 × (b0,b1,b2,a1,a2) */
+    this.st = new Float32Array(12);   /* 3 × (x1,x2,y1,y2)    */
+    this.fg = new Float32Array(3);
+
+    /* enveloppes d'explosion */
+    this.envA = 0; this.envB = 0; this.kA = 0.99; this.kB = 0.99;
+    this.amp = 1; this.phase = 0; this.seuil = 1;
+
+    /* Motif d'allumage : chaque cylindre a SON décalage et SON amplitude,
+       fixes et répétés à chaque cycle. C'est cette périodicité — et non du
+       bruit aléatoire — qui engendre la sous-harmonique à la fréquence de
+       rotation du vilebrequin, autrement dit le grondement d'un V8. */
+    this.numCyl = 0; this.banc = true;
+    this.decal = new Float32Array(16);
+    this.ampCyl = new Float32Array(16);
+    this.dcy = 0; this.dcx = 0;
+    this.pop = 0; this.popK = 0.999;
+    /* Le bruit de combustion n'est pas du bruit blanc : son energie vit en
+       bas-medium. Deux poles suffisent a retirer le souffle. */
+    this.b1 = 0; this.b2 = 0; this.kBruit = 0.2; this.gainBruit = 2.5;
+
+    /* voix : 0 = combustion, 1 = table d'onde, 2 = continu */
+    this.voix = 0;
+    this.wt = new Float32Array(2048);
+    this.vPh = 0; this.vT = 1e9; this.vDur = 0.1; this.vF = 200;
+    this.vGliss = 0; this.vBruit = 0; this.vMax = 0.12;
+    this.brun = 0;
+
+    this.cyl = 8; this.jitterT = 0.03; this.jitterA = 0.3;
+    this.crack = 0.0014; this.grit = 1; this.puff = 0.8;
+    this.drive = 1.6; this.f0 = 400;
+    this.sortie = 0.9;
+  }
+
+  DSP.prototype.alea = function(){
+    let x = this.graine;
+    x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
+    this.graine = x | 0;
+    return (x >>> 0) / 4294967296;
+  };
+
+  /* Passe-bande normalisé, coefficients rangés à plat */
+  DSP.prototype.bande = function(k, f, Q){
+    const w = 2 * Math.PI * Math.min(f, this.sr * 0.45) / this.sr;
+    const a = Math.sin(w) / (2 * Q), c = Math.cos(w), a0 = 1 + a;
+    const o = k * 5;
+    this.co[o]   =  a / a0;
+    this.co[o+1] =  0;
+    this.co[o+2] = -a / a0;
+    this.co[o+3] = -2 * c / a0;
+    this.co[o+4] = (1 - a) / a0;
+  };
+
+  /* Tables d'onde des moteurs qui ne sont pas des moteurs */
+  DSP.prototype.graverTable = function(nom){
+    const w = this.wt, N = 2048;
+    for(let i = 0; i < N; i++){
+      const ph = 2 * Math.PI * i / N;
+      let s = 0;
+      if(nom === 'canard'){
+        s = Math.sin(ph) + 0.78*Math.sin(2*ph) + 0.62*Math.sin(3*ph)
+          + 0.44*Math.sin(4*ph) + 0.30*Math.sin(5*ph) + 0.18*Math.sin(7*ph)
+          + 0.10*Math.sin(9*ph);
+      } else if(nom === 'vache'){
+        s = Math.sin(ph) + 0.55*Math.sin(2*ph) + 0.40*Math.sin(3*ph)
+          + 0.22*Math.sin(4*ph) + 0.12*Math.sin(6*ph);
+      } else if(nom === 'cuivre'){
+        for(let h = 1; h <= 11; h++) s += Math.sin(h*ph) / Math.pow(h, 0.82);
+        s *= 0.45;
+      } else if(nom === 'essaim'){
+        s = Math.sin(ph) + 0.5*Math.sin(2*ph) + 0.28*Math.sin(3*ph) + 0.16*Math.sin(5*ph);
+      } else { /* pet : dents de scie molle */
+        for(let h = 1; h <= 14; h++) s += Math.sin(h*ph) / h;
+        s *= 0.55;
+      }
+      w[i] = s * 0.5;
+    }
+  };
+
+  DSP.prototype.reglage = function(p){
+    const sr = this.sr;
+    this.cyl = p.cyl;
+    this.jitterT = p.jitterT; this.jitterA = p.jitterA;
+    this.crack = p.crack; this.grit = p.grit; this.puff = p.puff;
+    this.drive = p.drive; this.f0 = p.f0 || 400;
+    this.mixLigne = p.mixLigne;
+    this.fb1 = p.fb; this.fb2 = p.fb * 0.9;
+    this.amortLigne = p.amort;
+    this.vMax = p.vMax || 0.12;
+    this.vGliss = p.vGliss || 0;
+    this.vBruit = p.vBruit || 0;
+    this.sortie = p.sortie || 0.9;
+
+    /* longueur des lignes = résonance voulue, en échantillons */
+    this.n1 = Math.max(8, Math.min(8000, Math.round(sr / p.reso[0])));
+    this.n2 = Math.max(8, Math.min(8000, Math.round(sr / p.reso[1])));
+    this.d1.fill(0); this.d2.fill(0); this.i1 = 0; this.i2 = 0;
+    this.lp1 = 0; this.lp2 = 0;
+
+    for(let k = 0; k < 3; k++){
+      this.bande(k, p.form[k][0], p.form[k][1]);
+      this.fg[k] = p.form[k][2];
+    }
+    this.st.fill(0);
+
+    /* Motif d'allumage, tiré une fois pour toutes sur une graine fixe :
+       le moteur garde sa signature d'un démarrage à l'autre. */
+    let g = 20261 + p.cyl * 977;
+    const tirage = () => { g = (g * 1103515245 + 12345) & 0x7fffffff; return g / 0x7fffffff; };
+    for(let i = 0; i < 16; i++){
+      this.decal[i] = i < p.cyl ? (tirage() - 0.5) * p.jitterT * 2 : 0;
+      this.ampCyl[i] = i < p.cyl ? 1 - p.jitterA * tirage() : 1;
+    }
+    this.numCyl = 0;
+
+    this.voix = p.voix === 'combustion' ? 0 : (p.voix === 'continu' ? 2 : 1);
+    if(this.voix === 1) this.graverTable(p.voix);
+    this.kA = Math.exp(-1 / (sr * this.crack));
+
+    const fc = Math.min(p.bruitLp || p.form[2][0] * 1.0, 2600);
+    this.kBruit = 1 - Math.exp(-2 * Math.PI * fc / sr);
+    this.gainBruit = Math.sqrt(sr / (4 * fc));
+    this.b1 = 0; this.b2 = 0;
+  };
+
+  DSP.prototype.etat = function(rpm, charge, gate){
+    this.rpmCible = rpm; this.chargeCible = charge; this.gateCible = gate;
+  };
+
+  DSP.prototype.claquer = function(force){
+    this.pop = force;
+    this.popK = Math.exp(-1 / (this.sr * 0.045));
+  };
+
+  /* Une explosion : nouvelle amplitude, nouvelles enveloppes */
+  DSP.prototype.allumer = function(fFire){
+    this.amp = this.ampCyl[this.numCyl] * (1 - 0.02 * this.alea());
+    const periode = 1 / (fFire < 4 ? 4 : fFire);
+    this.envA = 1;
+    this.envB = 1;
+    const tB = periode * 0.34;
+    this.kB = Math.exp(-1 / (this.sr * (tB < 0.0015 ? 0.0015 : tB)));
+    if(this.voix === 1){
+      this.vT = 0;
+      this.vPh = 0;
+      const d = periode * 0.85;
+      this.vDur = d < this.vMax ? d : this.vMax;
+    }
+  };
+
+  DSP.prototype.rendre = function(L, R, n){
+    const sr = this.sr;
+    const glisse = 1 - Math.exp(-1 / (sr * 0.012));
+
+    for(let i = 0; i < n; i++){
+
+      this.rpm    += (this.rpmCible - this.rpm) * glisse;
+      this.charge += (this.chargeCible - this.charge) * glisse;
+      this.gate   += (this.gateCible - this.gate) * glisse;
+
+      /* fréquence d'allumage : c'est ELLE qui monte avec le régime */
+      const fFire = this.rpm * this.cyl / 120;
+      /* le claquement compte moins quand les explosions se rapprochent */
+      const gritEff = this.grit / (1 + fFire / 210);
+      this.phase += fFire / sr;
+      if(this.phase >= this.seuil){
+        this.phase -= this.seuil;
+        /* on avance d'un cylindre : l'écart au suivant vient du motif fixe,
+           avec un souffle d'aléatoire pour que deux cycles ne soient jamais
+           rigoureusement identiques */
+        const precedent = this.numCyl;
+        this.numCyl = this.numCyl + 1 >= this.cyl ? 0 : this.numCyl + 1;
+        this.banc = (this.numCyl & 1) === 0;
+        let s = 1 + this.decal[this.numCyl] - this.decal[precedent]
+                  + (this.alea() - 0.5) * 0.003;
+        this.seuil = s < 0.25 ? 0.25 : s;
+        this.allumer(fFire);
+      }
+
+      let e;
+      const blanc = this.alea() * 2 - 1;
+      this.b1 += (blanc - this.b1) * this.kBruit;
+      this.b2 += (this.b1 - this.b2) * this.kBruit;
+      const bruit = this.b2 * this.gainBruit;
+
+      if(this.voix === 0){
+        this.envA *= this.kA;
+        this.envB *= this.kB;
+        e = this.amp * (this.envA * bruit * gritEff
+                      + this.envB * (0.58 + 0.08 * bruit) * this.puff);
+      } else if(this.voix === 1){
+        this.envB *= this.kB;
+        if(this.vT < this.vDur){
+          const u = this.vT / this.vDur;
+          const f = this.f0 * (1 + this.vGliss * (0.5 - u));
+          this.vPh += f / sr;
+          if(this.vPh >= 1) this.vPh -= 1;
+          const x = this.vPh * 2048;
+          const i0 = x | 0;
+          const s = this.wt[i0] + (this.wt[(i0 + 1) & 2047] - this.wt[i0]) * (x - i0);
+          const env = 4 * u * (1 - u);
+          e = this.amp * (s * env * 1.6 + bruit * env * this.vBruit);
+          this.vT += 1 / sr;
+        } else e = 0;
+      } else {
+        /* continu : grondement de propulseur */
+        this.brun = this.brun * 0.985 + bruit * 0.12;
+        this.envB *= this.kB;
+        e = (this.brun * 0.95 + this.envB * 0.35) * (0.55 + 0.45 * this.charge);
+      }
+
+      if(this.pop > 0.001){
+        e += this.pop * bruit * 2.4;
+        this.pop *= this.popK;
+      }
+
+      e *= this.gate;
+
+      /* Deux lignes d'échappement de longueur fixe, une par banc de cylindres.
+         Les cylindres pairs partent à gauche, les impairs à droite : chaque
+         collecteur reçoit donc des impulsions à intervalles irréguliers, ce
+         qui fait chanter les sous-harmoniques. C'est le burble d'un V8. */
+      const e1 = this.banc ? e : e * 0.28;
+      const e2 = this.banc ? e * 0.28 : e;
+
+      const s1 = this.d1[this.i1];
+      this.lp1 += (s1 - this.lp1) * this.amortLigne;
+      this.d1[this.i1] = e1 + this.lp1 * this.fb1;
+      if(++this.i1 >= this.n1) this.i1 = 0;
+
+      const s2 = this.d2[this.i2];
+      this.lp2 += (s2 - this.lp2) * this.amortLigne;
+      this.d2[this.i2] = e2 + this.lp2 * this.fb2;
+      if(++this.i2 >= this.n2) this.i2 = 0;
+
+      const source = e + (s1 + s2) * this.mixLigne * 0.5;
+
+      /* résonateurs fixes, déroulés pour la vitesse */
+      let fo = 0, o, x1, x2, y1, y2, y;
+
+      o = 0;
+      x1 = this.st[0]; x2 = this.st[1]; y1 = this.st[2]; y2 = this.st[3];
+      y = this.co[0]*source + this.co[1]*x1 + this.co[2]*x2 - this.co[3]*y1 - this.co[4]*y2;
+      this.st[0] = source; this.st[1] = x1; this.st[2] = y; this.st[3] = y1;
+      fo += y * this.fg[0];
+
+      x1 = this.st[4]; x2 = this.st[5]; y1 = this.st[6]; y2 = this.st[7];
+      y = this.co[5]*source + this.co[6]*x1 + this.co[7]*x2 - this.co[8]*y1 - this.co[9]*y2;
+      this.st[4] = source; this.st[5] = x1; this.st[6] = y; this.st[7] = y1;
+      fo += y * this.fg[1];
+
+      x1 = this.st[8]; x2 = this.st[9]; y1 = this.st[10]; y2 = this.st[11];
+      y = this.co[10]*source + this.co[11]*x1 + this.co[12]*x2 - this.co[13]*y1 - this.co[14]*y2;
+      this.st[8] = source; this.st[9] = x1; this.st[10] = y; this.st[11] = y1;
+      fo += y * this.fg[2] * (0.35 + 0.65 * this.charge);
+
+      let out = source * 0.30 + fo * 1.35;
+
+      /* retrait de la composante continue */
+      this.dcy = out - this.dcx + 0.9985 * this.dcy;
+      this.dcx = out;
+      out = this.dcy;
+
+      /* Stéréo : chaque ligne penche d'un côté. La saturation est appliquée
+         APRÈS le mélange, donc elle borne réellement la sortie. */
+      const k = this.drive * (0.55 + 0.45 * this.charge);
+      L[i] = Math.tanh((out * 0.86 + s1 * this.mixLigne * 0.34) * k) * this.sortie;
+      R[i] = Math.tanh((out * 0.86 + s2 * this.mixLigne * 0.34) * k) * this.sortie;
+    }
+  };
+
+  return DSP;
+}
+
+const DSP = fabriqueDSP();
+
+const SRC_WORKLET =
+  'const DSP = (' + fabriqueDSP.toString() + ')();\n' +
+  'class ProcMoteur extends AudioWorkletProcessor{' +
+  '  constructor(){super();this.d=new DSP(sampleRate);this.port.onmessage=(e)=>{' +
+  '    const m=e.data;' +
+  '    if(m.t===0)this.d.reglage(m.p);' +
+  '    else if(m.t===1)this.d.etat(m.r,m.c,m.g);' +
+  '    else if(m.t===2)this.d.claquer(m.f);' +
+  '  };}' +
+  '  process(a,b){const o=b[0];this.d.rendre(o[0],o[1]||o[0],o[0].length);return true;}' +
+  '}' +
+  'registerProcessor("moteur",ProcMoteur);';
+
+/* ══════════════════════════════════════════════
+   SECTION : CATALOGUE DES MOTEURS
+
+   reso  = résonances de la ligne d'échappement (Hz, fixes)
+   form  = trois formants [fréquence, Q, gain]
+   crack = durée du transitoire de combustion (s)
+   ══════════════════════════════════════════════ */
+const MOTEURS = [
+  {
+    id:'v8', emoji:'🔥', nom:'Big Block 66', blague:'Le voisin sort sur son perron.',
+    voix:'combustion', cyl:8, ralenti:720, rougeA:5600, max:6400,
+    crack:0.0016, grit:1.0, puff:0.95, jitterT:0.115, jitterA:0.40,
+    reso:[62,84], fb:0.42, amort:0.11, mixLigne:0.85,
+    form:[[92,4.4,1.45],[268,2.3,0.70],[760,1.5,0.32]],
+    drive:1.9, sortie:0.95,
+    overrun:0.95, turbo:false, boites:6, cred:-14
+  },
+  {
+    id:'v12', emoji:'🐎', nom:'Scuderia V12', blague:'Le son coûte plus cher que la voiture.',
+    voix:'combustion', cyl:12, ralenti:950, rougeA:8200, max:9200,
+    crack:0.0009, grit:0.85, puff:0.72, jitterT:0.014, jitterA:0.16,
+    reso:[112,152], fb:0.40, amort:0.20, mixLigne:0.80,
+    form:[[152,3.5,1.30],[540,2.4,0.78],[1450,1.5,0.45]],
+    drive:1.7, sortie:0.92,
+    overrun:0.7, turbo:false, boites:6, cred:-6
+  },
+  {
+    id:'v10f1', emoji:'🏁', nom:'Grand Prix V10', blague:'Homologué pour les ronds-points.',
+    voix:'combustion', cyl:10, ralenti:2800, rougeA:16800, max:18500,
+    crack:0.0005, grit:0.72, puff:0.55, jitterT:0.008, jitterA:0.10,
+    reso:[178,244], fb:0.36, amort:0.30, mixLigne:0.70,
+    form:[[310,3.7,1.10],[930,2.5,0.82],[2450,1.6,0.54]],
+    drive:1.5, sortie:0.88,
+    overrun:1.0, turbo:false, boites:7, cred:2
+  },
+  {
+    id:'rotary', emoji:'🌀', nom:'Rotary 13B', blague:'Consomme de l’huile par philosophie.',
+    voix:'combustion', cyl:6, ralenti:880, rougeA:8600, max:9400,
+    crack:0.0011, grit:1.35, puff:0.60, jitterT:0.030, jitterA:0.20,
+    reso:[128,171], fb:0.38, amort:0.22, mixLigne:0.75,
+    form:[[210,3.3,1.05],[640,2.2,0.82],[1800,1.4,0.52]],
+    drive:2.3, sortie:0.90,
+    overrun:1.0, turbo:true, boites:6, cred:-8
+  },
+  {
+    id:'turbo4', emoji:'⚡', nom:'Quatre Turbo', blague:'Le sifflement fait 80 % du plaisir.',
+    voix:'combustion', cyl:4, ralenti:820, rougeA:6800, max:7500,
+    crack:0.0014, grit:1.05, puff:0.88, jitterT:0.060, jitterA:0.30,
+    reso:[78,106], fb:0.42, amort:0.14, mixLigne:0.80,
+    form:[[124,3.9,1.35],[380,2.3,0.74],[1020,1.5,0.36]],
+    drive:1.85, sortie:0.94,
+    overrun:1.0, turbo:true, boites:6, cred:-4
+  },
+  {
+    id:'moto', emoji:'🏍️', nom:'Deux-Temps 125', blague:'Nuage bleu vendu séparément.',
+    voix:'combustion', cyl:1, ralenti:1500, rougeA:11500, max:12800,
+    crack:0.0007, grit:1.45, puff:0.42, jitterT:0.020, jitterA:0.12,
+    reso:[196,268], fb:0.34, amort:0.34, mixLigne:0.65,
+    form:[[340,3.1,0.98],[1150,2.2,0.76],[3000,1.5,0.46]],
+    drive:2.1, sortie:0.86,
+    overrun:0.85, turbo:false, boites:6, cred:-22
+  },
+  {
+    id:'diesel', emoji:'🚜', nom:'Tracteur Diesel', blague:'Puissance : néant. Fierté : totale.',
+    voix:'combustion', cyl:3, ralenti:520, rougeA:2350, max:2800,
+    crack:0.0026, grit:1.55, puff:1.05, jitterT:0.150, jitterA:0.46,
+    reso:[46,61], fb:0.42, amort:0.09, mixLigne:0.85,
+    form:[[70,4.6,1.45],[190,2.4,0.76],[520,1.6,0.42]],
+    drive:2.4, sortie:0.95,
+    overrun:0.15, turbo:true, boites:4, cred:-45
+  },
+  {
+    id:'fusee', emoji:'🚀', nom:'Propulseur Orbital', blague:'Le périph, version décollage.',
+    voix:'continu', cyl:4, ralenti:900, rougeA:7000, max:8200,
+    crack:0.004, grit:1.0, puff:0.6, jitterT:0.10, jitterA:0.3,
+    reso:[38,53], fb:0.44, amort:0.10, mixLigne:0.85,
+    form:[[58,3.0,1.0],[165,2.0,0.62],[600,1.3,0.42]],
+    drive:1.5, sortie:0.62,
+    overrun:0.5, turbo:true, boites:3, cred:-30
+  },
+  {
+    id:'canard', emoji:'🦆', nom:'Canard Turbo', blague:'Aucune plume n’a été maltraitée.',
+    voix:'canard', cyl:4, ralenti:680, rougeA:5800, max:6800,
+    crack:0.002, grit:0.5, puff:0.4, jitterT:0.06, jitterA:0.28,
+    f0:560, vGliss:0.55, vBruit:0.22, vMax:0.11,
+    reso:[210,285], fb:0.24, amort:0.30, mixLigne:0.28,
+    form:[[620,2.2,0.7],[1500,1.8,0.5],[2900,1.4,0.3]],
+    drive:1.2, sortie:0.88,
+    overrun:0.35, turbo:false, boites:5, cred:-88
+  },
+  {
+    id:'vache', emoji:'🐄', nom:'Vache V8', blague:'Couple maximal disponible à l’étable.',
+    voix:'vache', cyl:2, ralenti:420, rougeA:2500, max:3100,
+    crack:0.004, grit:0.4, puff:0.4, jitterT:0.09, jitterA:0.30,
+    f0:142, vGliss:0.30, vBruit:0.30, vMax:0.30,
+    reso:[95,130], fb:0.28, amort:0.20, mixLigne:0.32,
+    form:[[240,2.0,0.75],[620,1.7,0.45],[1400,1.3,0.25]],
+    drive:1.3, sortie:0.90,
+    overrun:0.25, turbo:false, boites:4, cred:-92
+  },
+  {
+    id:'pet', emoji:'💨', nom:'Bio-Méthane', blague:'Carburant local, circuit très court.',
+    voix:'pet', cyl:5, ralenti:600, rougeA:4800, max:5800,
+    crack:0.003, grit:0.6, puff:0.5, jitterT:0.11, jitterA:0.45,
+    f0:104, vGliss:0.75, vBruit:0.55, vMax:0.16,
+    reso:[70,97], fb:0.34, amort:0.16, mixLigne:0.50,
+    form:[[150,2.4,0.85],[430,1.9,0.55],[980,1.3,0.30]],
+    drive:2.0, sortie:0.90,
+    overrun:0.7, turbo:false, boites:5, cred:-100
+  },
+  {
+    id:'cuivre', emoji:'🎺', nom:'Vuvuzela GT', blague:'Coupe du monde 2010, jamais digérée.',
+    voix:'cuivre', cyl:3, ralenti:760, rougeA:5000, max:6000,
+    crack:0.003, grit:0.4, puff:0.4, jitterT:0.03, jitterA:0.18,
+    f0:236, vGliss:0.06, vBruit:0.16, vMax:0.26,
+    reso:[118,159], fb:0.32, amort:0.22, mixLigne:0.42,
+    form:[[470,2.2,0.8],[940,1.8,0.55],[2100,1.4,0.32]],
+    drive:1.4, sortie:0.88,
+    overrun:0.25, turbo:false, boites:5, cred:-70
+  },
+  {
+    id:'essaim', emoji:'🐝', nom:'Essaim 3000', blague:'Le bruit d’origine, mais assumé.',
+    voix:'essaim', cyl:2, ralenti:900, rougeA:7400, max:8500,
+    crack:0.003, grit:0.5, puff:0.4, jitterT:0.05, jitterA:0.22,
+    f0:190, vGliss:0.18, vBruit:0.20, vMax:0.40,
+    reso:[150,203], fb:0.30, amort:0.26, mixLigne:0.38,
+    form:[[380,2.4,0.7],[900,1.9,0.5],[2000,1.4,0.3]],
+    drive:1.5, sortie:0.86,
+    overrun:0.3, turbo:false, boites:6, cred:-58
+  }
+];
+
+/* ══════════════════════════════════════════════
+   SECTION : NŒUD AUDIO
+   AudioWorklet si disponible, ScriptProcessor sinon.
+   ══════════════════════════════════════════════ */
+class MoteurAudio {
+  constructor(){
+    this.ctx = null; this.actif = false; this.preset = null;
+    this.volume = 0.85; this.moteurNode = null; this.dspLocal = null;
+  }
+
+  async demarrer(){
+    if(this.ctx){ await this.ctx.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) throw new Error('Web Audio est indisponible sur ce navigateur.');
+    const c = new AC({ latencyHint:'interactive' });
+    this.ctx = c;
+
+    /* papillon des gaz : le passe-bas s'ouvre avec la charge */
+    this.gaz = c.createBiquadFilter();
+    this.gaz.type = 'lowpass';
+    this.gaz.frequency.value = 900;
+    this.gaz.Q.value = 0.7;
+
+    this.grave = c.createBiquadFilter();
+    this.grave.type = 'highpass';
+    this.grave.frequency.value = 38;
+
+    this.gainMoteur = c.createGain();
+    this.gainMoteur.gain.value = 0;
+
+    this.compresseur = c.createDynamicsCompressor();
+    this.compresseur.threshold.value = -7;
+    this.compresseur.knee.value = 14;
+    this.compresseur.ratio.value = 3.2;
+    this.compresseur.attack.value = 0.006;
+    this.compresseur.release.value = 0.28;
+
+    this.master = c.createGain();
+    this.master.gain.value = MIX.volume/100;
+
+    this.gaz.connect(this.grave);
+    this.grave.connect(this.gainMoteur);
+    this.gainMoteur.connect(this.compresseur);
+    this.compresseur.connect(this.master);
+    this.master.connect(c.destination);
+
+    this.bruitBuf = this.faireBruit(2);
+    await this.brancherMoteur();
+    this.installerTurbo();
+    await c.resume();
+  }
+
+  faireBruit(sec){
+    const c = this.ctx, sr = c.sampleRate;
+    const b = c.createBuffer(2, Math.floor(sr*sec), sr);
+    for(let ch = 0; ch < 2; ch++){
+      const d = b.getChannelData(ch);
+      for(let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * 0.5;
+    }
+    return b;
+  }
+
+  async brancherMoteur(){
+    const c = this.ctx;
+    let url = null;
+    try{
+      if(!c.audioWorklet) throw new Error('pas de worklet');
+      const blob = new Blob([SRC_WORKLET], { type:'application/javascript' });
+      url = URL.createObjectURL(blob);
+      await c.audioWorklet.addModule(url);
+      this.moteurNode = new AudioWorkletNode(c, 'moteur', {
+        numberOfInputs:0, numberOfOutputs:1, outputChannelCount:[2]
+      });
+      this.viaWorklet = true;
+    }catch(e){
+      /* Worklet refusé (CSP, navigateur ancien) : on rend sur le fil principal */
+      this.viaWorklet = false;
+      this.dspLocal = new DSP(c.sampleRate);
+      const sp = c.createScriptProcessor(1024, 1, 2);
+      const dsp = this.dspLocal;
+      sp.onaudioprocess = (ev) => {
+        const b = ev.outputBuffer;
+        dsp.rendre(b.getChannelData(0), b.getChannelData(1), b.length);
+      };
+      this.moteurNode = sp;
+    }finally{
+      if(url) URL.revokeObjectURL(url);
+    }
+    this.moteurNode.connect(this.gaz);
+  }
+
+  envoyer(msg){
+    if(this.viaWorklet){ if(this.moteurNode) this.moteurNode.port.postMessage(msg); }
+    else if(this.dspLocal){
+      if(msg.t === 0) this.dspLocal.reglage(msg.p);
+      else if(msg.t === 1) this.dspLocal.etat(msg.r, msg.c, msg.g);
+      else if(msg.t === 2) this.dspLocal.claquer(msg.f);
+    }
+  }
+
+  installerTurbo(){
+    const c = this.ctx;
+    /* Le sifflement : deux tons qui montent avec le regime. */
+    this.turboA = c.createOscillator(); this.turboA.type = 'triangle';
+    this.turboB = c.createOscillator(); this.turboB.type = 'sine';
+    this.turboGain = c.createGain(); this.turboGain.gain.value = 0;
+    this.turboA.connect(this.turboGain);
+    this.turboB.connect(this.turboGain);
+    this.turboGain.connect(this.compresseur);
+    this.turboA.start(); this.turboB.start();
+
+    /* La compression elle-meme : un souffle d'air force, large bande,
+       qui n'existe que sous pression. Sans lui le turbo n'est qu'un sifflet. */
+    this.souffle = c.createBufferSource();
+    this.souffle.buffer = this.bruitBuf;
+    this.souffle.loop = true;
+    this.souffleFiltre = c.createBiquadFilter();
+    this.souffleFiltre.type = 'bandpass';
+    this.souffleFiltre.frequency.value = 1200;
+    this.souffleFiltre.Q.value = 0.9;
+    this.souffleGain = c.createGain();
+    this.souffleGain.gain.value = 0;
+    this.souffle.connect(this.souffleFiltre);
+    this.souffleFiltre.connect(this.souffleGain);
+    this.souffleGain.connect(this.compresseur);
+    this.souffle.start();
+
+    /* Resonance d'habitacle : le grave qu'on ressent autant qu'on l'entend. */
+    this.corps = c.createBiquadFilter();
+    this.corps.type = 'peaking';
+    this.corps.frequency.value = 62;
+    this.corps.Q.value = 1.1;
+    this.corps.gain.value = 0;
+    this.grave.disconnect();
+    this.grave.connect(this.corps);
+    this.corps.connect(this.gainMoteur);
+  }
+
+  charger(preset){
+    if(!this.ctx) return;
+    this.preset = preset;
+    this.envoyer({ t:0, p:{
+      cyl:preset.cyl, crack:preset.crack, grit:preset.grit, puff:preset.puff,
+      jitterT:preset.jitterT, jitterA:preset.jitterA,
+      reso:preset.reso, fb:preset.fb, amort:preset.amort, mixLigne:preset.mixLigne,
+      form:preset.form, drive:preset.drive, sortie:preset.sortie,
+      voix:preset.voix, f0:preset.f0, vGliss:preset.vGliss,
+      vBruit:preset.vBruit, vMax:preset.vMax
+    }});
+    this.actif = true;
+    this.gainMoteur.gain.setTargetAtTime(1, this.ctx.currentTime, 0.06);
+  }
+
+  majer(rpm, charge, boost, gate){
+    if(!this.actif || !this.ctx) return;
+    const t = this.ctx.currentTime, p = this.preset;
+    this.envoyer({ t:1, r:rpm, c:charge, g:gate });
+
+    const ouvert = 560 + charge*3400 + rpm*0.38;
+    this.gaz.frequency.setTargetAtTime(clamp(ouvert, 260, 8500), t, 0.05);
+
+    const vol = 0.34 + 0.66*charge;
+    this.gainMoteur.gain.setTargetAtTime(vol, t, 0.04);
+
+    /* le grave se gonfle avec la charge : la voiture pousse */
+    this.corps.gain.setTargetAtTime((2.5 + 5.5*charge) * MIX.grave/100, t, 0.09);
+
+    if(p.turbo){
+      const f = clamp(760 + rpm*1.15, 760, 12000);
+      this.turboA.frequency.setTargetAtTime(f, t, 0.05);
+      this.turboB.frequency.setTargetAtTime(f*1.51, t, 0.05);
+      this.turboGain.gain.setTargetAtTime(0.11*boost*boost * MIX.turbo/100, t, 0.06);
+      this.souffleFiltre.frequency.setTargetAtTime(
+        clamp(850 + rpm*0.75 + boost*1600, 700, 9000), t, 0.07);
+      this.souffleFiltre.Q.setTargetAtTime(0.9 + boost*1.4, t, 0.07);
+      this.souffleGain.gain.setTargetAtTime(0.115*boost * MIX.turbo/100, t, 0.06);
+    } else {
+      this.turboGain.gain.setTargetAtTime(0, t, 0.07);
+      this.souffleGain.gain.setTargetAtTime(0, t, 0.07);
+    }
+  }
+
+  /* Un claquement isolé — le crépitement du lever de pied. */
+  pop(force){
+    if(this.actif) this.envoyer({ t:2, f:force });
+  }
+
+  /* Pétarade : injectée DANS la ligne d'échappement, pas plaquée par-dessus */
+  petarade(force){
+    if(!this.actif) return 0;
+    const n = 2 + Math.floor(Math.random()*3);
+    for(let i = 0; i < n; i++){
+      setTimeout(() => this.envoyer({ t:2, f:(0.5 + Math.random()*0.6) * (force||1) }),
+                 i * (40 + Math.random()*70));
+    }
+    return n;
+  }
+
+  decharge(force){
+    if(!this.actif) return;
+    const c = this.ctx, t = c.currentTime;
+    const src = c.createBufferSource();
+    src.buffer = this.bruitBuf; src.loop = true;
+    const f = c.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.setValueAtTime(4200, t);
+    f.frequency.exponentialRampToValueAtTime(620, t + 0.46);
+    f.Q.value = 1.5;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.52*(force||1), t + 0.018);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+    src.connect(f); f.connect(g); g.connect(this.compresseur);
+    src.start(t); src.stop(t + 0.7);
+  }
+
+  arreter(){
+    if(!this.ctx) return;
+    this.actif = false;
+    this.gainMoteur.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+    this.turboGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
+  }
+
+  reglerVolume(v){
+    this.volume = v;
+    if(this.master) this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+  }
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : LA VOITURE
+
+   Model Y Juniper Grande Autonomie Propulsion.
+   Le son est faux, la physique est vraie : masse,
+   puissance, trainee et bridage sont ceux de la voiture,
+   si bien que le chrono affiche le vrai 0 a 100.
+
+   Constantes calees par integration numerique sur les
+   chiffres constructeur : 5,9 s de 0 a 100 km/h, un seul
+   moteur arriere, donc une motricite plus limitee au
+   demarrage qu'une transmission integrale.
+   ══════════════════════════════════════════════ */
+const VOITURE = {
+  nom:'Model Y Juniper Propulsion',
+  masse:2000,        // kg, vehicule (1921) + conducteur
+  puissance:200000,  // W a la roue
+  forceMax:10500,    // N, plafond d'adherence sur l'essieu arriere
+  cxS:0.528,         // Cx 0,22 x maitre-couple 2,4 m2
+  crr:0.010,         // resistance au roulement
+  regen:3000,        // N de frein moteur en levant le pied
+  frein:11000,       // N sur le frein a pied
+  vitMax:201,        // km/h, bridage constructeur
+  zeroCent:5.9       // s, reference constructeur
+};
+
+/* Avance la vitesse d'un pas de temps. gaz et frein entre 0 et 1. */
+function rouler(vKmh, gaz, frein, dt){
+  const v = vKmh / 3.6;
+  const moteur = Math.min(VOITURE.forceMax, VOITURE.puissance / Math.max(v, 1.5)) * gaz;
+  const trainee = VOITURE.crr * VOITURE.masse * 9.81 + 0.5 * 1.225 * VOITURE.cxS * v * v;
+  const retenue = (gaz < 0.05 && v > 0.5 ? VOITURE.regen : 0) + frein * VOITURE.frein;
+  let a = (moteur - trainee - retenue) / VOITURE.masse;
+  if(vKmh >= VOITURE.vitMax && a > 0) a = 0;
+  return Math.max(0, vKmh + a * 3.6 * dt);
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : TRANSMISSION
+
+   rpm = ralenti + vitesse × K × ratio, où K est calibré
+   pour que le dernier rapport touche la zone rouge à la
+   vitesse maximale. Le rapport 1 arrive donc en zone
+   rouge vers 50 km/h — comme une vraie boîte.
+   ══════════════════════════════════════════════ */
+const RAPPORTS = [3.55, 2.16, 1.54, 1.16, 0.92, 0.77, 0.65];
+
+class Transmission {
+  constructor(){ this.gear = 0; this.verrou = 0; this.tPassage = -9999; }
+  reset(){ this.gear = 0; this.verrou = 0; this.tPassage = -9999; }
+
+  facteur(p){
+    const dernier = Math.min(p.boites, RAPPORTS.length) - 1;
+    return (p.rougeA - p.ralenti) / (VOITURE.vitMax * RAPPORTS[dernier]);
+  }
+
+  regime(vitesse, gear, p){
+    return clamp(p.ralenti + vitesse * this.facteur(p) * RAPPORTS[gear], p.ralenti, p.max);
+  }
+
+  /* Renvoie 1 si on vient de monter un rapport, -1 si on a rétrogradé, 0 sinon.
+     Les seuils suivent la charge : en croisière on passe tôt et on roule bas,
+     pied au plancher on tient jusqu'à la zone rouge. C'est cet écart qui fait
+     la différence entre rouler et accélérer. */
+  majer(vitesse, p, maintenant, charge){
+    const dernier = Math.min(p.boites, RAPPORTS.length) - 1;
+    if(maintenant < this.verrou) return 0;
+    const c = clamp(charge, 0, 1);
+    const plage = p.rougeA - p.ralenti;
+    const rpm = this.regime(vitesse, this.gear, p);
+    const monte = p.ralenti + plage * (0.46 + 0.48*c);
+    const descend = p.ralenti + plage * (0.14 + 0.36*c);
+
+    if(rpm > monte && this.gear < dernier){
+      this.gear++;
+      this.verrou = maintenant + 700;
+      this.tPassage = maintenant;
+      return 1;
+    }
+    if(rpm < descend && this.gear > 0){
+      this.gear--;
+      this.verrou = maintenant + 500;
+      this.tPassage = maintenant;
+      return -1;
+    }
+    return 0;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : SOURCE GPS
+   ══════════════════════════════════════════════ */
+const MODES = [
+  { id:'gps', emoji:'🛰️', nom:'GPS — conduite réelle',
+    desc:'Le régime suit votre vitesse et vos accélérations. Le mode à choisir dans la voiture.' },
+  { id:'pedale', emoji:'🦶', nom:'Pédale — à l’arrêt',
+    desc:'Vous appuyez, ça monte. Pour faire hurler le V12 sur le parking, moteur coupé.' },
+  { id:'demo', emoji:'🏁', nom:'Démo — tour lancé',
+    desc:'Départ arrêté, montée sur tous les rapports, freinage, en boucle.' }
+];
+
+class SourceGPS {
+  constructor(){ this.vitesse = 0; this.accel = 0; this.id = null; this.ok = false; this.derniere = null; }
+
+  ouvrir(onErreur){
+    if(!navigator.geolocation){ onErreur('Ce navigateur ne donne pas accès au GPS.'); return false; }
+    try{
+      this.id = navigator.geolocation.watchPosition(
+        (pos) => this.recevoir(pos),
+        (err) => onErreur(err.code === 1
+          ? 'Position refusée. Autorisez la localisation, ou passez en mode Pédale.'
+          : 'GPS indisponible ici. Passage en mode Démo.'),
+        { enableHighAccuracy:true, maximumAge:900, timeout:12000 }
+      );
+      return true;
+    }catch(e){ onErreur('GPS bloqué : ' + e.message); return false; }
+  }
+
+  recevoir(pos){
+    const t = pos.timestamp || Date.now();
+    let v;
+    if(pos.coords.speed !== null && !isNaN(pos.coords.speed)){
+      v = Math.max(0, pos.coords.speed) * 3.6;
+    }else if(this.derniere){
+      const dt = (t - this.derniere.t) / 1000;
+      v = dt > 0.2 ? (this.distance(this.derniere, pos.coords) / dt) * 3.6 : this.vitesse;
+    }else v = 0;
+
+    if(this.derniere){
+      const dt = Math.max(0.2, (t - this.derniere.t)/1000);
+      this.accel = lerp(this.accel, (v - this.vitesse)/3.6/dt, 0.55);
+    }
+    this.vitesse = v;
+    this.derniere = { t:t, latitude:pos.coords.latitude, longitude:pos.coords.longitude };
+    this.ok = true;
+  }
+
+  distance(a, b){
+    const R = 6371000, rad = Math.PI/180;
+    const dLat = (b.latitude - a.latitude) * rad;
+    const dLon = (b.longitude - a.longitude) * rad;
+    const s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+              Math.cos(a.latitude*rad) * Math.cos(b.latitude*rad) * Math.sin(dLon/2)*Math.sin(dLon/2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+  }
+
+  fermer(){
+    if(this.id !== null){ navigator.geolocation.clearWatch(this.id); this.id = null; }
+    this.ok = false;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : ÉTAT
+   ══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   SECTION : RÉGLAGES MÉMORISÉS
+   ══════════════════════════════════════════════ */
+const MIX_DEFAUT = { volume:85, grave:100, turbo:100, pops:100 };
+const MIX = Object.assign({}, MIX_DEFAUT);
+const CLE = 'vroomulator.v1';
+
+function lireReglages(){
+  try{
+    const r = JSON.parse(localStorage.getItem(CLE) || '{}');
+    if(r.mix) Object.keys(MIX_DEFAUT).forEach(k => { if(typeof r.mix[k] === 'number') MIX[k] = r.mix[k]; });
+    return r;
+  }catch(e){ return {}; }
+}
+function ecrireReglages(){
+  try{
+    localStorage.setItem(CLE, JSON.stringify({ mix:MIX, moteur:etat.moteur.id, mode:etat.mode }));
+  }catch(e){ /* stockage indisponible : réglages non mémorisés */ }
+}
+
+const audio = new MoteurAudio();
+const boite = new Transmission();
+const gps = new SourceGPS();
+
+const etat = {
+  mode:'gps', enMarche:false, moteur:MOTEURS[0],
+  vitesse:0, rpm:MOTEURS[0].ralenti, charge:0.12, boost:0, pedale:0,
+  credibilite:100, tDemo:0,
+  recVitesse:0, recRegime:0, pops:0, tRouge:0, dernierMsg:'',
+  chronoDebut:null, chronoFait:false, rec0100:0, tPop:0.1
+};
+
+let vitesseCible = 0;
+let tPrec = 0;
+
+/* ══════════════════════════════════════════════
+   SECTION : CADRAN
+   ══════════════════════════════════════════════ */
+const CX = 210, CY = 210, R = 152, A0 = -125, A1 = 125;
+
+function polaire(angle, rayon){
+  const a = (angle - 90) * Math.PI/180;
+  return [CX + Math.cos(a)*rayon, CY + Math.sin(a)*rayon];
+}
+function arc(deA, aB, rayon){
+  const p0 = polaire(deA, rayon), p1 = polaire(aB, rayon);
+  const grand = Math.abs(aB - deA) > 180 ? 1 : 0;
+  return 'M ' + p0[0].toFixed(2) + ' ' + p0[1].toFixed(2) +
+         ' A ' + rayon + ' ' + rayon + ' 0 ' + grand + ' 1 ' + p1[0].toFixed(2) + ' ' + p1[1].toFixed(2);
+}
+
+function construireCadran(p){
+  const g = $('#graduations');
+  g.textContent = '';
+  const ns = 'http://www.w3.org/2000/svg';
+  const pas = p.max > 12000 ? 2000 : (p.max > 6000 ? 1000 : 500);
+
+  for(let v = 0; v <= p.max; v += pas/2){
+    const ang = lerp(A0, A1, v / p.max);
+    const majeur = v % pas === 0;
+    const a = polaire(ang, R - (majeur ? 20 : 12));
+    const b = polaire(ang, R - 2);
+    const l = document.createElementNS(ns, 'line');
+    l.setAttribute('x1', a[0].toFixed(1)); l.setAttribute('y1', a[1].toFixed(1));
+    l.setAttribute('x2', b[0].toFixed(1)); l.setAttribute('y2', b[1].toFixed(1));
+    l.setAttribute('stroke', v >= p.rougeA ? 'var(--flamme)' : (majeur ? 'var(--creme)' : 'var(--acier)'));
+    l.setAttribute('stroke-width', majeur ? 2.4 : 1.2);
+    g.appendChild(l);
+
+    if(majeur){
+      const t2 = polaire(ang, R - 38);
+      const t = document.createElementNS(ns, 'text');
+      t.setAttribute('x', t2[0].toFixed(1));
+      t.setAttribute('y', (t2[1] + 6).toFixed(1));
+      t.setAttribute('text-anchor', 'middle');
+      t.setAttribute('style', 'font-family:var(--data);font-weight:600;font-size:17px;fill:' +
+        (v >= p.rougeA ? 'var(--flamme)' : 'var(--craie)'));
+      t.textContent = String(Math.round(v/1000));
+      g.appendChild(t);
+    }
+  }
+
+  $('#arc-zone-rouge').setAttribute('d', arc(lerp(A0, A1, p.rougeA / p.max), A1, R + 8));
+  $('#nom-moteur').textContent = p.nom;
+}
+
+function majCadran(rpm, p){
+  const frac = clamp(rpm / p.max, 0, 1);
+  const ang = lerp(A0, A1, frac);
+  $('#aiguille').setAttribute('transform', 'rotate(' + ang.toFixed(2) + ' ' + CX + ' ' + CY + ')');
+  $('#arc-regime').setAttribute('d', frac > 0.004 ? arc(A0, ang, R + 8) : '');
+  $('#arc-regime').setAttribute('stroke', rpm >= p.rougeA ? 'var(--flamme)' : 'var(--gulf)');
+  $('#regime-txt').textContent = fr(Math.round(rpm/10)*10);
+  $('#regime-txt').setAttribute('style',
+    'font-family:var(--data);font-weight:800;font-size:46px;fill:' +
+    (rpm >= p.rougeA ? 'var(--flamme)' : 'var(--creme)'));
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : COPILOTE
+   ══════════════════════════════════════════════ */
+function commentaire(){
+  const p = etat.moteur, v = etat.vitesse, rpm = etat.rpm;
+  if(!etat.enMarche) return 'Moteur coupé. La voiture ne fait aucun bruit, comme prévu par le constructeur.';
+  const c = [];
+
+  if(rpm >= p.rougeA) c.push('ZONE ROUGE — aucune pièce mécanique n’a été blessée.');
+  if(v > 160) c.push('À cette allure, la batterie commence à poser des questions.');
+  else if(v > 125) c.push('Le ' + p.nom + ' vous félicite. Le radar aussi.');
+  else if(v > 90 && etat.charge > 0.5) c.push('Deux tonnes de silence, déguisées en ' + p.nom + '.');
+  else if(v > 40 && etat.charge > 0.6) c.push('Couple instantané, bande-son différée. Le meilleur des deux mondes.');
+  else if(v > 8 && v <= 40) c.push('Vitesse de parking, ambiance de départ des 24 Heures.');
+  else if(v <= 2) c.push('À l’arrêt, un ' + p.nom + ' au ralenti. Les passants ne comprennent pas.');
+
+  if(boite.gear >= 4) c.push('Rapport ' + (boite.gear+1) + ' engagé. Sur une voiture qui n’a qu’un réducteur.');
+  if(etat.rec0100 && etat.rec0100 < 6.2) c.push('0 à 100 en ' + fr(etat.rec0100,2) + ' s, et le voisin cherche encore le pot d’échappement.');
+  if(v > 195) c.push('201 km/h au compteur : le bridage dit non, le ' + p.nom + ' dit oui.');
+  if(etat.credibilite < 20) c.push('Crédibilité automobile : proche de zéro. Continuez.');
+  if(p.id === 'canard') c.push('Le canard passe les 5 000 tr/min. La science n’a pas d’explication.');
+  if(p.id === 'pet') c.push('Vous avez choisi le Bio-Méthane. Assumez jusqu’au bout.');
+  if(p.id === 'diesel' && v > 60) c.push('Ce tracteur dépasse largement son homologation.');
+
+  return c[Math.floor(Math.random()*c.length)] || 'Le ' + p.nom + ' tourne. Tout va bien.';
+}
+
+let tProchainMsg = 0;
+function dire(txt, pause){
+  etat.dernierMsg = txt;
+  $('#copilote-texte').textContent = txt;
+  tProchainMsg = performance.now() + (pause || 4200);
+}
+function majCopilote(maintenant, force){
+  if(!force && maintenant < tProchainMsg) return;
+  const txt = commentaire();
+  if(txt !== etat.dernierMsg) dire(txt);
+  else tProchainMsg = maintenant + 4200;
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : BOUCLE PRINCIPALE
+   ══════════════════════════════════════════════ */
+function boucle(maintenant){
+  requestAnimationFrame(boucle);
+  const dt = clamp((maintenant - tPrec)/1000, 0.001, 0.1);
+  tPrec = maintenant;
+  const p = etat.moteur;
+
+  /* ── 1. vitesse ── */
+  if(etat.mode === 'gps'){
+    vitesseCible = gps.ok ? gps.vitesse : 0;
+    etat.charge = gps.ok
+      ? clamp(0.12 + gps.accel*0.40 + vitesseCible/(VOITURE.vitMax*3.2), 0, 1)
+      : lerp(etat.charge, 0.10, 0.04);
+    etat.vitesse = lerp(etat.vitesse, vitesseCible, 0.16);
+  }
+  else if(etat.mode === 'pedale'){
+    etat.vitesse = rouler(etat.vitesse, etat.pedale, 0, dt);
+    etat.charge = lerp(etat.charge, etat.pedale*0.92 + 0.08, 0.12);
+  }
+  else {
+    /* Démo : un vrai départ arrêté, plein gaz jusqu'à la limite,
+       maintien, lever de pied puis freinage. 28 s. */
+    etat.tDemo += dt;
+    const T = 28, u = (etat.tDemo % T) / T;
+    let gaz = 0, frein = 0;
+    if(u < 0.04)      { gaz = 0;    frein = 0;   }   /* sur la ligne */
+    else if(u < 0.54) { gaz = 1;    frein = 0;   }   /* pied au plancher */
+    else if(u < 0.65) { gaz = 0.45; frein = 0;   }   /* on tient */
+    else if(u < 0.72) { gaz = 0;    frein = 0;   }   /* pied levé, régénération */
+    else if(u < 0.94) { gaz = 0;    frein = 0.85;}   /* freinage */
+    etat.vitesse = rouler(etat.vitesse, gaz, frein, dt);
+    etat.charge = lerp(etat.charge, gaz*0.92 + 0.08, 0.10);
+  }
+
+  /* ── 2. boîte ── */
+  const passage = boite.majer(etat.vitesse, p, maintenant, etat.charge);
+  if(passage !== 0){
+    $('#rapport').classList.add('change');
+    setTimeout(() => $('#rapport').classList.remove('change'), 170);
+    if(passage === 1 && etat.enMarche && etat.charge > 0.45){
+      etat.pops += audio.petarade(0.5);
+    }
+  }
+
+  /* coupure d'allumage pendant le passage : c'est ce silence qui fait le « clac » */
+  const depuis = maintenant - boite.tPassage;
+  const gate = (depuis >= 0 && depuis < 130) ? 0.10 : 1;
+
+  /* ── 3. régime, avec l'inertie d'un vrai vilebrequin ── */
+  const rpmCible = boite.regime(etat.vitesse, boite.gear, p);
+  const tau = depuis < 260 ? 0.09 : (rpmCible > etat.rpm ? 0.20 : 0.34);
+  etat.rpm += (rpmCible - etat.rpm) * (1 - Math.exp(-dt/tau));
+  /* tremblement de ralenti */
+  const rpmAffiche = etat.rpm + (etat.rpm < p.ralenti*1.25
+    ? Math.sin(maintenant*0.011) * p.ralenti*0.022 : 0);
+
+  /* ── 4. turbo ── */
+  const cibleBoost = p.turbo
+    ? clamp(etat.charge * clamp((etat.rpm - p.ralenti)/(p.rougeA*0.5), 0, 1), 0, 1) : 0;
+  if(p.turbo && etat.boost > 0.45 && cibleBoost < etat.boost - 0.28 && etat.enMarche){
+    audio.decharge(etat.boost);
+  }
+  etat.boost = lerp(etat.boost, cibleBoost, cibleBoost > etat.boost ? 0.030 : 0.13);
+
+  /* ── 5. pétarades au lever de pied ──
+     Sur un moteur chaud, l'essence imbrûlée s'enflamme dans l'échappement
+     dès qu'on relâche : ça crépite tout seul, sans rien demander. */
+  const overrun = p.overrun === undefined ? 0.7 : p.overrun;
+  if(etat.enMarche && overrun > 0 && etat.charge < 0.20
+     && etat.rpm > p.ralenti*2.0 && etat.vitesse > 22){
+    const vivacite = clamp((etat.rpm - p.ralenti) / (p.rougeA - p.ralenti), 0, 1);
+    etat.tPop -= dt * (0.4 + 1.1*vivacite) * overrun * Math.max(0.2, MIX.pops/100);
+    if(etat.tPop <= 0){
+      if(MIX.pops > 0) audio.pop((0.28 + 0.50*vivacite) * overrun * (0.6 + Math.random()*0.6) * MIX.pops/100);
+      etat.pops++;
+      etat.tPop = 0.09 + Math.random()*0.22;
+    }
+  } else etat.tPop = 0.08;
+
+  /* ── 6. audio ── */
+  if(etat.enMarche) audio.majer(rpmAffiche, etat.charge, etat.boost, gate);
+
+  /* ── 7. chrono 0 à 100, sur la vraie physique de la voiture ── */
+  if(etat.enMarche){
+    if(etat.vitesse < 1.2){ etat.chronoDebut = null; etat.chronoFait = false; }
+    else if(!etat.chronoFait){
+      if(etat.chronoDebut === null) etat.chronoDebut = maintenant;
+      else if(etat.vitesse >= 100){
+        const t = (maintenant - etat.chronoDebut)/1000;
+        if(etat.rec0100 === 0 || t < etat.rec0100) etat.rec0100 = t;
+        etat.chronoFait = true;
+        dire('0 à 100 en ' + fr(t,2) + ' s. Sans une goutte de carburant.', 4500);
+      }
+    }
+  }
+
+  /* ── 8. compteurs ── */
+  if(etat.enMarche){
+    if(etat.vitesse > etat.recVitesse) etat.recVitesse = etat.vitesse;
+    if(etat.rpm > etat.recRegime) etat.recRegime = etat.rpm;
+    if(etat.rpm >= p.rougeA) etat.tRouge += dt;
+    etat.credibilite = lerp(etat.credibilite, clamp(100 + p.cred, 0, 100), 0.006);
+  }
+
+  peindre(rpmAffiche, maintenant);
+}
+
+function peindre(rpm, maintenant){
+  const p = etat.moteur;
+  majCadran(rpm, p);
+  $('#vitesse').textContent = fr(Math.round(etat.vitesse));
+  $('#rapport').textContent = String(boite.gear + 1);
+  $('#jauge-charge').style.width = (etat.charge*100).toFixed(0) + '%';
+  $('#val-charge').textContent = Math.round(etat.charge*100) + ' %';
+  $('#jauge-turbo').style.width = (etat.boost*100).toFixed(0) + '%';
+  $('#val-turbo').textContent = fr(etat.boost*1.4, 1) + ' bar';
+  $('#jauge-cred').style.width = etat.credibilite.toFixed(0) + '%';
+  $('#val-cred').textContent = Math.round(etat.credibilite) + ' %';
+  $('#rec-vitesse').textContent = fr(Math.round(etat.recVitesse));
+  $('#rec-0100').textContent = etat.rec0100 ? fr(etat.rec0100, 2) + ' s' : '—';
+  $('#rec-regime').textContent = fr(Math.round(etat.recRegime/10)*10);
+  $('#rec-pops').textContent = fr(etat.pops);
+  $('#rec-rouge').textContent = fr(etat.tRouge, etat.tRouge < 10 ? 1 : 0) + ' s';
+  $('#pedale-jus').style.height = (etat.pedale*100).toFixed(0) + '%';
+  majCopilote(maintenant, false);
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : SÉLECTION DU MOTEUR
+   ══════════════════════════════════════════════ */
+function construireRail(){
+  const rail = $('#rail-moteurs');
+  rail.textContent = '';
+  MOTEURS.forEach((p) => {
+    const b = document.createElement('button');
+    b.className = 'sticker'; b.type = 'button'; b.dataset.id = p.id;
+    b.setAttribute('aria-pressed', String(p.id === etat.moteur.id));
+
+    const haut = document.createElement('div');
+    haut.className = 'sticker-haut';
+    const em = document.createElement('span');
+    em.className = 'sticker-emoji'; em.textContent = p.emoji; em.setAttribute('aria-hidden','true');
+    const nom = document.createElement('span');
+    nom.className = 'sticker-nom'; nom.textContent = p.nom;
+    haut.appendChild(em); haut.appendChild(nom);
+
+    const bl = document.createElement('div');
+    bl.className = 'sticker-blague'; bl.textContent = p.blague;
+
+    const sp = document.createElement('div');
+    sp.className = 'sticker-specs';
+    sp.textContent = p.cyl + ' cyl · ' + fr(p.rougeA) + ' tr/min';
+
+    b.appendChild(haut); b.appendChild(bl); b.appendChild(sp);
+    b.addEventListener('click', () => choisirMoteur(p));
+    rail.appendChild(b);
+  });
+}
+
+function choisirMoteur(p){
+  setTimeout(ecrireReglages, 0);
+  etat.moteur = p;
+  boite.reset();
+  etat.rpm = p.ralenti;
+  etat.boost = 0;
+  construireCadran(p);
+  document.querySelectorAll('.sticker').forEach(b =>
+    b.setAttribute('aria-pressed', String(b.dataset.id === p.id)));
+  if(etat.enMarche){
+    try{ audio.charger(p); }
+    catch(e){ avis('Impossible de charger ce moteur : ' + e.message); }
+  }
+  majCopilote(performance.now(), true);
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : DÉMARRAGE / ARRÊT
+   ══════════════════════════════════════════════ */
+function construireModes(){
+  const box = $('#modes');
+  box.textContent = '';
+  MODES.forEach((m) => {
+    const b = document.createElement('button');
+    b.className = 'mode'; b.type = 'button'; b.dataset.id = m.id;
+    b.setAttribute('aria-pressed', String(m.id === etat.mode));
+    const e = document.createElement('div');
+    e.className = 'mode-emoji'; e.textContent = m.emoji; e.setAttribute('aria-hidden','true');
+    const txt = document.createElement('div');
+    const n = document.createElement('div');
+    n.className = 'mode-nom'; n.textContent = m.nom;
+    const d = document.createElement('div');
+    d.className = 'mode-desc'; d.textContent = m.desc;
+    txt.appendChild(n); txt.appendChild(d);
+    b.appendChild(e); b.appendChild(txt);
+    b.addEventListener('click', () => {
+      etat.mode = m.id;
+      ecrireReglages();
+      document.querySelectorAll('.mode').forEach(x =>
+        x.setAttribute('aria-pressed', String(x.dataset.id === m.id)));
+    });
+    box.appendChild(b);
+  });
+}
+
+async function mettreLeContact(){
+  const bouton = $('#btn-contact');
+  bouton.disabled = true;
+  bouton.textContent = 'Démarrage…';
+  try{
+    await audio.demarrer();
+    audio.charger(etat.moteur);
+  }catch(e){
+    avis('Le son n’a pas pu démarrer : ' + e.message, 9000);
+    bouton.disabled = false;
+    bouton.textContent = 'Mettre le contact';
+    return;
+  }
+  bouton.disabled = false;
+  bouton.textContent = 'Mettre le contact';
+
+  etat.enMarche = true;
+  etat.tDemo = 0;
+  boite.reset();
+  $('#demarrage').hidden = true;
+  $('#btn-coupe').setAttribute('aria-pressed', 'false');
+  $('#pedale').disabled = etat.mode !== 'pedale';
+  $('#source-vitesse').textContent = etat.mode === 'gps' ? 'GPS' : (etat.mode === 'pedale' ? 'pédale' : 'démo');
+
+  if(!audio.viaWorklet){
+    avis('Rendu audio en mode compatible : si le son crachote, fermez les autres onglets.', 7000);
+  }
+
+  if(etat.mode === 'gps'){
+    const lance = gps.ouvrir((msg) => { avis(msg, 9000); if(!gps.ok) basculerDemo(); });
+    if(!lance) basculerDemo();
+    else avis('GPS en cours d’acquisition — le moteur reste au ralenti d’ici là.', 5000);
+  }
+
+  demanderVeille();
+  majCopilote(performance.now(), true);
+}
+
+function basculerDemo(){
+  etat.mode = 'demo';
+  etat.tDemo = 0;
+  $('#source-vitesse').textContent = 'démo';
+  $('#pedale').disabled = true;
+}
+
+function couperMoteur(){
+  etat.enMarche = false;
+  audio.arreter();
+  gps.fermer();
+  etat.charge = 0.1; etat.boost = 0; etat.pedale = 0;
+  etat.vitesse = 0; vitesseCible = 0;
+  etat.chronoDebut = null; etat.chronoFait = false;
+  boite.reset();
+  $('#btn-coupe').setAttribute('aria-pressed', 'true');
+  $('#demarrage').hidden = false;
+  majCopilote(performance.now(), true);
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : ÉCRAN ALLUMÉ
+   ══════════════════════════════════════════════ */
+let veille = null;
+async function demanderVeille(){
+  if(!('wakeLock' in navigator)) return;
+  try{ veille = await navigator.wakeLock.request('screen'); }
+  catch(e){ /* refusé ou onglet caché : sans conséquence */ }
+}
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState === 'visible' && etat.enMarche) demanderVeille();
+});
+
+/* ══════════════════════════════════════════════
+   SECTION : COMMANDES
+   ══════════════════════════════════════════════ */
+const VOLUMES = [0.85, 1, 0.4, 0];
+const ICONES_VOL = ['🔊', '📢', '🔉', '🔇'];
+let idxVol = 0;
+
+function brancherCommandes(){
+  $('#btn-contact').addEventListener('click', mettreLeContact);
+
+  $('#btn-coupe').addEventListener('click', () => {
+    if(etat.enMarche) couperMoteur(); else mettreLeContact();
+  });
+
+  $('#btn-volume').addEventListener('click', () => {
+    idxVol = (idxVol + 1) % VOLUMES.length;
+    MIX.volume = Math.round(VOLUMES[idxVol]*100);
+    audio.reglerVolume(VOLUMES[idxVol]);
+    majCurseurs(); ecrireReglages();
+    $('#btn-volume').textContent = ICONES_VOL[idxVol];
+    avis('Volume : ' + Math.round(VOLUMES[idxVol]*100) + ' %', 1800);
+  });
+
+  $('#btn-plein').addEventListener('click', () => {
+    if(!document.fullscreenElement){
+      const p = document.documentElement.requestFullscreen &&
+                document.documentElement.requestFullscreen();
+      if(p && p.catch) p.catch(() => avis('Plein écran refusé par le navigateur.', 3500));
+    } else document.exitFullscreen();
+  });
+
+  $('#btn-petarade').addEventListener('click', () => {
+    if(!etat.enMarche){ avis('Mettez d’abord le contact.', 2500); return; }
+    etat.pops += audio.petarade(1);
+    etat.credibilite = clamp(etat.credibilite - 1.5, 0, 100);
+    dire('Pétarade n° ' + fr(etat.pops) + '. Toujours zéro particule émise.', 3000);
+  });
+
+  $('#btn-turbo').addEventListener('click', () => {
+    if(!etat.enMarche){ avis('Mettez d’abord le contact.', 2500); return; }
+    audio.decharge(1);
+    etat.boost = 0;
+    dire('Décharge de turbo sur un moteur qui n’existe pas. Superbe.', 3000);
+  });
+
+  const ped = $('#pedale');
+  const presse = (e) => { if(!ped.disabled){ e.preventDefault(); etat.pedale = 1; } };
+  const relache = () => {
+    if(etat.pedale > 0.5 && etat.boost > 0.4) audio.decharge(etat.boost);
+    etat.pedale = 0;
+  };
+  ped.addEventListener('pointerdown', presse);
+  ped.addEventListener('pointerup', relache);
+  ped.addEventListener('pointercancel', relache);
+  ped.addEventListener('pointerleave', relache);
+
+  window.addEventListener('keydown', (e) => {
+    if(e.code === 'Space' && etat.mode === 'pedale' && etat.enMarche){
+      e.preventDefault(); etat.pedale = 1;
+    }
+  });
+  window.addEventListener('keyup', (e) => { if(e.code === 'Space') etat.pedale = 0; });
+}
+
+/* ══════════════════════════════════════════════
+   SECTION : LANCEMENT
+   ══════════════════════════════════════════════ */
+function majCurseurs(){
+  document.querySelectorAll('[data-mix]').forEach(inp => {
+    inp.value = MIX[inp.dataset.mix];
+    inp.nextElementSibling.textContent = MIX[inp.dataset.mix] + ' %';
+  });
+}
+function brancherMixage(){
+  const panneau = $('#mixage'), bouton = $('#btn-mixage');
+  bouton.addEventListener('click', () => {
+    panneau.hidden = !panneau.hidden;
+    bouton.setAttribute('aria-pressed', String(!panneau.hidden));
+  });
+  document.querySelectorAll('[data-mix]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      MIX[inp.dataset.mix] = Number(inp.value);
+      inp.nextElementSibling.textContent = inp.value + ' %';
+      if(inp.dataset.mix === 'volume') audio.reglerVolume(MIX.volume/100);
+      ecrireReglages();
+    });
+  });
+  $('#btn-mix-defaut').addEventListener('click', () => {
+    Object.assign(MIX, MIX_DEFAUT);
+    audio.reglerVolume(MIX.volume/100);
+    majCurseurs(); ecrireReglages();
+  });
+  majCurseurs();
+}
+
+const memo = lireReglages();
+const moteurMemo = MOTEURS.find(m => m.id === memo.moteur);
+if(moteurMemo) etat.moteur = moteurMemo;
+if(MODES.some(m => m.id === memo.mode)) etat.mode = memo.mode;
+
+/* Hors ligne une fois installée : sans effet dans un cadre qui l'interdit */
+if('serviceWorker' in navigator && location.protocol === 'https:'){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+brancherMixage();
+construireRail();
+construireModes();
+construireCadran(etat.moteur);
+brancherCommandes();
+requestAnimationFrame((t) => { tPrec = t; boucle(t); });
+
+})();
+</script>

@@ -1,0 +1,11 @@
+{
+  "name": "Vroomulator",
+  "short_name": "Vroom",
+  "description": "Simulateur de son moteur pour Model Y",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#100E0C",
+  "theme_color": "#100E0C",
+  "icons": [{ "src": "icone.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
