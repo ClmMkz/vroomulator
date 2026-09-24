@@ -1394,7 +1394,7 @@ class Transmission {
        - pied à fond → on tape le rupteur avant de passer. */
     let monte;
     if(c < 0.22) monte = p.ralenti + plage * 0.40;
-    else if(c < 0.85) monte = p.ralenti + plage * (0.50 + 0.52 * (c - 0.22) / 0.63);
+    else if(c < 0.85) monte = p.ralenti + plage * (0.80 + 0.19 * (c - 0.22) / 0.63);
     else monte = Infinity;
     const descend = p.ralenti + plage * (c < 0.22 ? 0.16 : 0.22 + 0.40 * c);
 
@@ -1467,7 +1467,9 @@ class SourceGPS {
     this.vitesse = v;
     this.derniere = { t:t, latitude:pos.coords.latitude, longitude:pos.coords.longitude };
     this.ok = true;
-    this.tRecu = performance.now();
+    const mnt = performance.now();
+    if(this.tRecu) this.periode = lerp(this.periode || 1000, mnt - this.tRecu, 0.3);
+    this.tRecu = mnt;
   }
 
   distance(a, b){
@@ -1666,7 +1668,15 @@ function boucle(maintenant){
   }
 
   /* ── 2. boîte ── */
-  const passage = boite.majer(etat.vitesse, p, maintenant, etat.charge);
+  /* Effort demandé, lu sur l'accélération réelle :
+     < 0,3 m/s² = pied levé ou vitesse stable → on passe le rapport ;
+     dès qu'on accélère → on monte haut ; ≥ 2,5 m/s² → rupteur. */
+  etat.accel = etat.mode === 'gps'
+    ? (gps.ok ? gps.accel : 0)
+    : lerp(etat.accel || 0, (etat.vitesse - (etat.vPrec || 0)) / 3.6 / dt, 0.1);
+  etat.vPrec = etat.vitesse;
+  const effort = etat.accel < 0.3 ? 0.1 : Math.min(1, 0.3 + 0.7 * (etat.accel - 0.3) / 2.2);
+  const passage = boite.majer(etat.vitesse, p, maintenant, effort);
   if(passage !== 0){
     $('#rapport').classList.add('change');
     setTimeout(() => $('#rapport').classList.remove('change'), 170);
@@ -1680,7 +1690,7 @@ function boucle(maintenant){
   const depuis = maintenant - boite.tPassage;
   let gate = (depuis >= 0 && depuis < 170) ? 0.0 : (depuis < 320 ? 1.25 : 1);
   /* rupteur : l'allumage est coupé par à-coups, ~11 fois par seconde */
-  const auRupteur = etat.charge >= 0.85 && etat.rpm >= p.rougeA * 0.99;
+  const auRupteur = effort >= 0.85 && etat.rpm >= p.rougeA * 0.99;
   if(auRupteur && gate === 1) gate = (Math.floor(maintenant / 45) % 2) ? 0.05 : 1;
 
   /* ── 3. régime, avec l'inertie d'un vrai vilebrequin ── */
@@ -1744,6 +1754,10 @@ function boucle(maintenant){
 }
 
 function peindre(rpm, maintenant){
+  if(etat.enMarche && etat.mode === 'gps'){
+    const hz = gps.ok && gps.periode ? (1000 / gps.periode) : 0;
+    $('#source-vitesse').textContent = 'GPS ' + fr(hz, 1) + ' Hz · ' + fr(etat.accel || 0, 1) + ' m/s²';
+  }
   const p = etat.moteur;
   majCadran(rpm, p);
   $('#vitesse').textContent = fr(Math.round(etat.vitesse));
