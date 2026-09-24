@@ -385,7 +385,7 @@ button{font-family:inherit;color:inherit;background:none;border:none;cursor:poin
   <div class="carte-demarrage">
     <h1>Rendez le bruit à votre <em>Model Y</em></h1>
     <p class="accroche">
-      Treize moteurs modélisés en direct, et une boîte de vitesses inventée pour une
+      Quatre vrais moteurs enregistrés, plus quelques invités farfelus, et une boîte de vitesses inventée pour une
       voiture qui n'en a pas. <b>Masse, puissance et bridage sont ceux de votre Model Y
       Propulsion : le chrono 0 à 100 affiche donc le vrai.</b>
     </p>
@@ -910,69 +910,6 @@ const MOTEURS = [
     overrun:1.0, turbo:true, boites:6, cred:5
   },
   {
-    id:'v8', emoji:'🔥', nom:'Big Block 66', blague:'Le voisin sort sur son perron.',
-    voix:'combustion', cyl:8, ralenti:720, rougeA:5600, max:6400,
-    crack:0.0016, grit:1.0, puff:0.95, jitterT:0.115, jitterA:0.40,
-    reso:[62,84], fb:0.42, amort:0.11, mixLigne:0.85,
-    form:[[92,4.4,1.45],[268,2.3,0.70],[760,1.5,0.32]],
-    drive:1.9, sortie:0.95,
-    overrun:0.95, turbo:false, boites:6, cred:-14
-  },
-  {
-    id:'v12', emoji:'🐎', nom:'Scuderia V12', blague:'Le son coûte plus cher que la voiture.',
-    voix:'combustion', cyl:12, ralenti:950, rougeA:8200, max:9200,
-    crack:0.0009, grit:0.85, puff:0.72, jitterT:0.014, jitterA:0.16,
-    reso:[112,152], fb:0.40, amort:0.20, mixLigne:0.80,
-    form:[[152,3.5,1.30],[540,2.4,0.78],[1450,1.5,0.45]],
-    drive:1.7, sortie:0.92,
-    overrun:0.7, turbo:false, boites:6, cred:-6
-  },
-  {
-    id:'v10f1', emoji:'🏁', nom:'Grand Prix V10', blague:'Homologué pour les ronds-points.',
-    voix:'combustion', cyl:10, ralenti:2800, rougeA:16800, max:18500,
-    crack:0.0005, grit:0.72, puff:0.55, jitterT:0.008, jitterA:0.10,
-    reso:[178,244], fb:0.36, amort:0.30, mixLigne:0.70,
-    form:[[310,3.7,1.10],[930,2.5,0.82],[2450,1.6,0.54]],
-    drive:1.5, sortie:0.88,
-    overrun:1.0, turbo:false, boites:7, cred:2
-  },
-  {
-    id:'rotary', emoji:'🌀', nom:'Rotary 13B', blague:'Consomme de l’huile par philosophie.',
-    voix:'combustion', cyl:6, ralenti:880, rougeA:8600, max:9400,
-    crack:0.0011, grit:1.35, puff:0.60, jitterT:0.030, jitterA:0.20,
-    reso:[128,171], fb:0.38, amort:0.22, mixLigne:0.75,
-    form:[[210,3.3,1.05],[640,2.2,0.82],[1800,1.4,0.52]],
-    drive:2.3, sortie:0.90,
-    overrun:1.0, turbo:true, boites:6, cred:-8
-  },
-  {
-    id:'turbo4', emoji:'⚡', nom:'Quatre Turbo', blague:'Le sifflement fait 80 % du plaisir.',
-    voix:'combustion', cyl:4, ralenti:820, rougeA:6800, max:7500,
-    crack:0.0014, grit:1.05, puff:0.88, jitterT:0.060, jitterA:0.30,
-    reso:[78,106], fb:0.42, amort:0.14, mixLigne:0.80,
-    form:[[124,3.9,1.35],[380,2.3,0.74],[1020,1.5,0.36]],
-    drive:1.85, sortie:0.94,
-    overrun:1.0, turbo:true, boites:6, cred:-4
-  },
-  {
-    id:'moto', emoji:'🏍️', nom:'Deux-Temps 125', blague:'Nuage bleu vendu séparément.',
-    voix:'combustion', cyl:1, ralenti:1500, rougeA:11500, max:12800,
-    crack:0.0007, grit:1.45, puff:0.42, jitterT:0.020, jitterA:0.12,
-    reso:[196,268], fb:0.34, amort:0.34, mixLigne:0.65,
-    form:[[340,3.1,0.98],[1150,2.2,0.76],[3000,1.5,0.46]],
-    drive:2.1, sortie:0.86,
-    overrun:0.85, turbo:false, boites:6, cred:-22
-  },
-  {
-    id:'diesel', emoji:'🚜', nom:'Tracteur Diesel', blague:'Puissance : néant. Fierté : totale.',
-    voix:'combustion', cyl:3, ralenti:520, rougeA:2350, max:2800,
-    crack:0.0026, grit:1.55, puff:1.05, jitterT:0.150, jitterA:0.46,
-    reso:[46,61], fb:0.42, amort:0.09, mixLigne:0.85,
-    form:[[70,4.6,1.45],[190,2.4,0.76],[520,1.6,0.42]],
-    drive:2.4, sortie:0.95,
-    overrun:0.15, turbo:true, boites:4, cred:-45
-  },
-  {
     id:'fusee', emoji:'🚀', nom:'Propulseur Orbital', blague:'Le périph, version décollage.',
     voix:'continu', cyl:4, ralenti:900, rougeA:7000, max:8200,
     crack:0.004, grit:1.0, puff:0.6, jitterT:0.10, jitterA:0.3,
@@ -1020,16 +957,6 @@ const MOTEURS = [
     form:[[470,2.2,0.8],[940,1.8,0.55],[2100,1.4,0.32]],
     drive:1.4, sortie:0.88,
     overrun:0.25, turbo:false, boites:5, cred:-70
-  },
-  {
-    id:'essaim', emoji:'🐝', nom:'Essaim 3000', blague:'Le bruit d’origine, mais assumé.',
-    voix:'essaim', cyl:2, ralenti:900, rougeA:7400, max:8500,
-    crack:0.003, grit:0.5, puff:0.4, jitterT:0.05, jitterA:0.22,
-    f0:190, vGliss:0.18, vBruit:0.20, vMax:0.40,
-    reso:[150,203], fb:0.30, amort:0.26, mixLigne:0.38,
-    form:[[380,2.4,0.7],[900,1.9,0.5],[2000,1.4,0.3]],
-    drive:1.5, sortie:0.86,
-    overrun:0.3, turbo:false, boites:6, cred:-58
   }
 ];
 
