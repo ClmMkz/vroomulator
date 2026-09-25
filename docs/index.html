@@ -688,10 +688,10 @@ function fabriqueDSP(){
       }
 
       const blanc = this.alea() * 2 - 1;
-      this.b1 += (blanc - this.b1) * 0.12;
-      this.b2 += (this.b1 - this.b2) * 0.12;
+      this.b1 += (blanc - this.b1) * 0.04;
+      this.b2 += (this.b1 - this.b2) * 0.04;
       let pop = 0;
-      if(this.pop > 0.001){ pop = this.pop * this.b2 * 9; this.pop *= this.popK; }
+      if(this.pop > 0.001){ pop = this.pop * this.b2 * 2.2; this.pop *= this.popK; }
 
       const out = Math.tanh((s * 2.6 * (0.55 + 0.45 * this.charge)) * this.gate + pop);
       L[i] = out * 0.92;
@@ -1021,10 +1021,10 @@ class MoteurAudio {
     const air = c.createBiquadFilter();
     air.type = 'lowpass'; air.frequency.value = 11000; air.Q.value = 0.5;
     this.gainSortie = c.createGain();
-    this.gainSortie.gain.value = 1.6;
+    this.gainSortie.gain.value = 1.35;
     const limiteur = c.createDynamicsCompressor();
-    limiteur.threshold.value = -1; limiteur.knee.value = 3; limiteur.ratio.value = 12;
-    limiteur.attack.value = 0.002; limiteur.release.value = 0.12;
+    limiteur.threshold.value = -1.5; limiteur.knee.value = 6; limiteur.ratio.value = 8;
+    limiteur.attack.value = 0.008; limiteur.release.value = 0.3;
 
 
     this.compresseur.connect(grave);
@@ -1175,9 +1175,10 @@ class MoteurAudio {
     this.gainMoteur.gain.setTargetAtTime(vol, t, 0.04);
 
     /* le grave se gonfle avec la charge : la voiture pousse */
-    this.corps.gain.setTargetAtTime((2.5 + 5.5*charge) * MIX.grave/100, t, 0.09);
+    const reel = p.voix === 'echantillon';
+    this.corps.gain.setTargetAtTime((reel ? 1.5 : 2.5 + 5.5*charge) * MIX.grave/100, t, 0.09);
 
-    if(p.turbo){
+    if(p.turbo && !reel){
       const f = clamp(760 + rpm*1.15, 760, 12000);
       this.turboA.frequency.setTargetAtTime(f, t, 0.05);
       this.turboB.frequency.setTargetAtTime(f*1.51, t, 0.05);
@@ -1347,10 +1348,10 @@ class Transmission {
       }
       return 0;
     }
-    if(c < 0.22) monte = p.ralenti + plage * 0.40;
+    if(c < 0.22) monte = p.ralenti + plage * 0.62;
     else if(c < 0.85) monte = p.ralenti + plage * (0.80 + 0.19 * (c - 0.22) / 0.63);
     else monte = Infinity;
-    const descend = p.ralenti + plage * (c < 0.22 ? 0.16 : 0.22 + 0.40 * c);
+    const descend = p.ralenti + plage * (c < 0.22 ? 0.34 : 0.34 + 0.30 * c);
 
     /* au rupteur, pied à fond : on rebondit un instant puis on passe */
     if(c >= 0.85 && rpm >= p.rougeA * 0.995){
